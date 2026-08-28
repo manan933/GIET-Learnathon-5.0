@@ -18,6 +18,24 @@ if (userCount(db) === 0) {
 
 const app = createApp({ db, uploadsDir });
 
-serve({ fetch: app.fetch, port: API_PORT }, (info) => {
+serve({ fetch: app.fetch, port: API_PORT }, async (info) => {
 	console.log(`HostelGrievance API listening on http://127.0.0.1:${info.port}`);
+
+	// Initialize keepalive pinging if hosted on Render or specified via env
+	const targetUrl =
+		process.env.KEEPALIVE_URL ||
+		process.env.APP_URL ||
+		process.env.RENDER_EXTERNAL_URL;
+
+	if (targetUrl) {
+		try {
+			const healthEndpoint = `${targetUrl.replace(/\/+$/, '')}/api/health`;
+			const { ping } = await import('keepalive-server');
+			// Ping every 5 minutes (300,000 ms) to keep the Render server active
+			ping(300000, healthEndpoint);
+			console.log(`[Keepalive] Pinging ${healthEndpoint} every 5 minutes to stay active`);
+		} catch (err) {
+			console.warn('[Keepalive] Could not initialize keepalive ping:', err);
+		}
+	}
 });

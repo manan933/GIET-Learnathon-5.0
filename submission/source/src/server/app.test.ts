@@ -12,11 +12,6 @@ const PNG = Buffer.from(
 	'base64'
 );
 
-const JPEG = Buffer.from(
-	'/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAG/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPwB//9k=',
-	'base64'
-);
-
 function cookieHeader(res: Response): string {
 	const anyHeaders = res.headers as Headers & { getSetCookie?: () => string[] };
 	const list = anyHeaders.getSetCookie?.() ?? [];
@@ -100,6 +95,44 @@ describe('HostelGrievance Hardened API Suite', () => {
 
 		const after = await app.request('/api/me', { headers: { Cookie: cookie } });
 		expect(after.status).toBe(401);
+	});
+
+	it('data persists across logout and login for the same user and warden', async () => {
+		// 1. Student 1 logs in and creates a new grievance
+		const student1 = await login(app, 'student@example.test', 'student123');
+		const createRes = await app.request('/api/grievances', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: student1.cookie },
+			body: JSON.stringify({
+				title: 'Ceiling fan making squeaking noise',
+				category: 'Room',
+				description: 'The ceiling fan in B-204 makes an unbearable squeaking noise at night.'
+			})
+		});
+		expect(createRes.status).toBe(201);
+		const createdJson = await createRes.json();
+		const createdId = createdJson.data.id;
+
+		// 2. Student 1 logs out
+		await app.request('/api/logout', { method: 'POST', headers: { Cookie: student1.cookie } });
+
+		// 3. Student 2 (Priya) logs in -> She should NOT see Student 1's grievance (IDOR protection)
+		const student2 = await login(app, 'priya@example.test', 'student123');
+		const priyaList = await app.request('/api/grievances', { headers: { Cookie: student2.cookie } });
+		const priyaJson = await priyaList.json();
+		expect(priyaJson.data.some((g: { id: string }) => g.id === createdId)).toBe(false);
+
+		// 4. Student 1 logs back in -> Their grievance is STILL THERE!
+		const student1Relogin = await login(app, 'student@example.test', 'student123');
+		const stu1List = await app.request('/api/grievances', { headers: { Cookie: student1Relogin.cookie } });
+		const stu1Json = await stu1List.json();
+		expect(stu1Json.data.some((g: { id: string }) => g.id === createdId)).toBe(true);
+
+		// 5. Warden logs in -> Warden sees Student 1's grievance!
+		const warden = await login(app, 'warden@example.test', 'warden123');
+		const wardenList = await app.request('/api/grievances', { headers: { Cookie: warden.cookie } });
+		const wardenJson = await wardenList.json();
+		expect(wardenJson.data.some((g: { id: string }) => g.id === createdId)).toBe(true);
 	});
 
 	it('student can create a grievance', async () => {
