@@ -27,11 +27,7 @@ export const ALLOWED_ATTACHMENT_TYPES = new Set([
 ]);
 
 export const TURSO_DATABASE_URL =
-	process.env.TURSO_DATABASE_URL ??
-	process.env.TURSO_URL ??
-	'libsql://hostelgrievance-manan933.aws-ap-south-1.turso.io';
+	process.env.TURSO_DATABASE_URL ?? process.env.TURSO_URL;
 
 export const TURSO_AUTH_TOKEN =
-	process.env.TURSO_AUTH_TOKEN ??
-	process.env.TURSO_TOKEN ??
-	'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc5NTU2MTksImlkIjoiMDFhMDRhNzQtZjAwMS03ZDdhLWEwZTQtYWMzYzE5ODlkMDU4Iiwia2lkIjoiYTIyWVQ2SHZFYk9FY3JYSnc0YUpWN2s5ZThNQnBqYjZ0NmRQME80TWl6NCIsInJpZCI6ImZiZDJmZmRmLWIxZmEtNGI1Mi1iZjc1LTAwODM4NGVkMzBlNiJ9.GVRcGt2YWCZmHyz5FkI8g8G9a85UzZ2b4liuz74RrvvhAqWhBc7geKqG0pPGUQzNm450pJ-5JKaoXaiAmwFOAQ';
+	process.env.TURSO_AUTH_TOKEN ?? process.env.TURSO_TOKEN;
