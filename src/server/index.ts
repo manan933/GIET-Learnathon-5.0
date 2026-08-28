@@ -31,9 +31,9 @@ serve({ fetch: app.fetch, port: API_PORT }, async (info) => {
 		try {
 			const healthEndpoint = `${targetUrl.replace(/\/+$/, '')}/api/health`;
 			const { ping } = await import('keepalive-server');
-			// Ping every 5 minutes (300,000 ms) to keep the Render server active
-			ping(300000, healthEndpoint);
-			console.log(`[Keepalive] Pinging ${healthEndpoint} every 5 minutes to stay active`);
+			// Ping every 1 minute (60,000 ms) to keep the Render server continuously active
+			ping(60000, healthEndpoint);
+			console.log(`[Keepalive] Pinging ${healthEndpoint} every 1 minute to stay active`);
 		} catch (err) {
 			console.warn('[Keepalive] Could not initialize keepalive ping:', err);
 		}
