@@ -45,24 +45,18 @@ authRoutes.post('/login', async (c) => {
 		throw new HttpError(400, 'bad_request', 'Invalid email or password length.');
 	}
 
-	// 1. Account Lockout & IP Jailing Check
-	const lockStatus = checkLockout(email, clientIp);
+	// 1. Account Lockout Check: If account is locked, strictly block login (even with correct password)
+	const lockStatus = checkLockout(email);
 	if (lockStatus.locked) {
-		// Increment counter on repeated attempts while locked so persistent hammering escalates to 15m lock
-		const updatedStatus = recordFailedAttempt(email, clientIp, db);
-		const durationMsg =
-			updatedStatus.remainingSeconds > 60
-				? `${Math.ceil(updatedStatus.remainingSeconds / 60)} minutes`
-				: `${updatedStatus.remainingSeconds} seconds`;
 		throw new HttpError(
 			429,
 			'bad_request',
-			`Account temporarily locked due to consecutive failed attempts (${updatedStatus.attempts} failures). Try again in ${updatedStatus.remainingSeconds}s.`
+			`Account temporarily locked for security (${lockStatus.attempts} failed attempts). Please try again in ${lockStatus.remainingSeconds}s.`
 		);
 	}
 
-	// 2. Rate limiting: max 15 login attempts per 60 seconds per IP
-	const limit = checkRateLimit('login', clientIp, 15, 60_000);
+	// 2. IP Rate limiting: max 25 login attempts per 60 seconds per IP
+	const limit = checkRateLimit('login', clientIp, 25, 60_000);
 	if (!limit.allowed) {
 		logSecurityEvent(
 			{
@@ -94,10 +88,6 @@ authRoutes.post('/login', async (c) => {
 		);
 
 		if (failResult.locked) {
-			const durationMsg =
-				failResult.remainingSeconds > 60
-					? `${Math.ceil(failResult.remainingSeconds / 60)} minutes`
-					: `${failResult.remainingSeconds} seconds`;
 			throw new HttpError(
 				429,
 				'bad_request',
@@ -110,7 +100,7 @@ authRoutes.post('/login', async (c) => {
 
 	// Successful login: reset failed counters and rate limiters
 	resetRateLimit('login', clientIp);
-	recordSuccessfulLogin(email, clientIp);
+	recordSuccessfulLogin(email);
 
 	// 3. Anomalous Geo-IP & Impossible Travel Check
 	const travel = checkImpossibleTravel(user.id, clientIp);

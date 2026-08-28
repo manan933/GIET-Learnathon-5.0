@@ -7,21 +7,24 @@ interface LockoutRecord {
 	lastAttemptAt: number;
 }
 
-const lockoutMap = new Map<string, LockoutRecord>();
+// Map keyed by normalized account email (and fallback IP)
+const accountLockouts = new Map<string, LockoutRecord>();
 
 const LOCK_1_MIN_MS = 60 * 1000;
 const LOCK_15_MIN_MS = 15 * 60 * 1000;
 
-function keyFor(email: string, ip: string): string {
-	return `${email.toLowerCase()}:${ip}`;
+function normalizeKey(email: string): string {
+	return email.trim().toLowerCase();
 }
 
+/**
+ * Check if an account is currently locked out.
+ */
 export function checkLockout(
-	email: string,
-	ip: string
+	email: string
 ): { locked: boolean; remainingSeconds: number; attempts: number } {
-	const key = keyFor(email, ip);
-	const record = lockoutMap.get(key);
+	const key = normalizeKey(email);
+	const record = accountLockouts.get(key);
 
 	if (!record) {
 		return { locked: false, remainingSeconds: 0, attempts: 0 };
@@ -33,7 +36,7 @@ export function checkLockout(
 		return { locked: true, remainingSeconds, attempts: record.failedAttempts };
 	}
 
-	// Lock has expired
+	// Lock duration has passed, unlock but keep count until a successful login resets it
 	if (record.lockedUntil && record.lockedUntil <= now) {
 		record.lockedUntil = null;
 	}
@@ -41,41 +44,53 @@ export function checkLockout(
 	return { locked: false, remainingSeconds: 0, attempts: record.failedAttempts };
 }
 
+/**
+ * Record a failed authentication attempt and update lockout state.
+ */
 export function recordFailedAttempt(
 	email: string,
 	ip: string,
 	db?: Database,
 	userId?: string
 ): { locked: boolean; remainingSeconds: number; attempts: number } {
-	const key = keyFor(email, ip);
+	const key = normalizeKey(email);
 	const now = Date.now();
-	let record = lockoutMap.get(key);
+	let record = accountLockouts.get(key);
 
 	if (!record) {
 		record = { failedAttempts: 0, lockedUntil: null, lastAttemptAt: now };
-		lockoutMap.set(key, record);
+		accountLockouts.set(key, record);
 	}
 
 	record.failedAttempts += 1;
 	record.lastAttemptAt = now;
 
-	// Progressive lockout thresholds:
-	// >= 5 attempts -> 15 minutes lockout (900 seconds)
-	// >= 3 attempts -> 1 minute lockout (60 seconds)
+	// Thresholds:
+	// >= 5 attempts -> 15 minutes lock
+	// >= 3 attempts -> 1 minute lock
 	if (record.failedAttempts >= 5) {
-		record.lockedUntil = now + LOCK_15_MIN_MS;
+		// Only set/extend lock if not already set to a later time
+		const targetLock = now + LOCK_15_MIN_MS;
+		if (!record.lockedUntil || record.lockedUntil < targetLock) {
+			record.lockedUntil = targetLock;
+		}
+
 		logSecurityEvent(
 			{
 				type: 'rate_limit_exceeded',
 				userId: userId ?? 'anonymous',
 				resource: '/api/login',
 				ip,
-				detail: `High-threat brute-force detected: Account ${email} locked for 15 minutes (${record.failedAttempts} consecutive failed attempts from IP ${ip})`
+				detail: `High-threat lockout: Account ${email} locked for 15 minutes (${record.failedAttempts} consecutive failed attempts from IP ${ip})`
 			},
 			db
 		);
 	} else if (record.failedAttempts >= 3) {
-		record.lockedUntil = now + LOCK_1_MIN_MS;
+		// Set 1 minute lock if not already locked
+		if (!record.lockedUntil || record.lockedUntil <= now) {
+			record.lockedUntil = now + LOCK_1_MIN_MS;
+		}
+
 		logSecurityEvent(
 			{
 				type: 'rate_limit_exceeded',
@@ -87,7 +102,7 @@ export function recordFailedAttempt(
 			db
 		);
 
-		// Feature 4: Invalidate active sessions when failed attempts reach 3+
+		// Invalidate all active sessions for this account
 		if (db && userId) {
 			try {
 				db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
@@ -97,7 +112,10 @@ export function recordFailedAttempt(
 		}
 	}
 
-	const remainingSeconds = record.lockedUntil ? Math.ceil((record.lockedUntil - now) / 1000) : 0;
+	const remainingSeconds = record.lockedUntil && record.lockedUntil > now
+		? Math.ceil((record.lockedUntil - now) / 1000)
+		: 0;
+
 	return {
 		locked: Boolean(record.lockedUntil && record.lockedUntil > now),
 		remainingSeconds,
@@ -105,11 +123,14 @@ export function recordFailedAttempt(
 	};
 }
 
-export function recordSuccessfulLogin(email: string, ip: string): void {
-	const key = keyFor(email, ip);
-	lockoutMap.delete(key);
+/**
+ * Reset failed attempts on a verified successful login.
+ */
+export function recordSuccessfulLogin(email: string): void {
+	const key = normalizeKey(email);
+	accountLockouts.delete(key);
 }
 
 export function resetAllLockouts(): void {
-	lockoutMap.clear();
+	accountLockouts.clear();
 }

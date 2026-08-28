@@ -80,7 +80,7 @@ describe('HostelGrievance Hardened API Suite', () => {
 		expect(warden.json.user.role).toBe('warden');
 	});
 
-	it('rejects invalid credentials and enforces lockout and session invalidation on 3+ failures', async () => {
+	it('rejects invalid credentials, strictly blocks correct password while locked, and escalates to 15m on 5 fails', async () => {
 		// Log in legitimately first to get an active session
 		const legit = await login(app, 'student@example.test', 'student123', '10.0.0.1');
 		expect(legit.res.status).toBe(200);
@@ -91,16 +91,21 @@ describe('HostelGrievance Hardened API Suite', () => {
 		const fail2 = await login(app, 'student@example.test', 'wrong2', '10.0.0.1');
 		expect(fail2.res.status).toBe(401);
 		const fail3 = await login(app, 'student@example.test', 'wrong3', '10.0.0.1');
-		expect(fail3.res.status).toBe(429); // 3rd failure locks account
+		expect(fail3.res.status).toBe(429); // 3rd failure locks account (1 min)
+		expect(fail3.json.error).toContain('Account locked');
 
-		// 4th attempt is locked
-		const fail4 = await login(app, 'student@example.test', 'student123', '10.0.0.1');
-		expect(fail4.res.status).toBe(429);
-		expect(fail4.json.error).toContain('Account');
+		// While locked, even entering CORRECT password must be strictly REJECTED with 429
+		const correctWhileLocked = await login(app, 'student@example.test', 'student123', '10.0.0.1');
+		expect(correctWhileLocked.res.status).toBe(429);
+		expect(correctWhileLocked.json.error).toContain('locked');
 
 		// Active session was invalidated
 		const checkSession = await app.request('/api/me', { headers: { Cookie: legit.cookie } });
 		expect(checkSession.status).toBe(401);
+
+		// Attempt 5th failure -> Escalates to 15 minutes lockout
+		const fail5 = await login(app, 'student@example.test', 'wrong5', '10.0.0.1');
+		expect(fail5.res.status).toBe(429);
 	});
 
 	it('current-user works after login and session is destroyed in DB after logout', async () => {
