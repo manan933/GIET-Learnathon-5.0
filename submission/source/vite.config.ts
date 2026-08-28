@@ -8,12 +8,14 @@ export const API_TARGET = process.env.API_TARGET ?? 'http://127.0.0.1:3001';
 export default defineConfig({
 	server: {
 		host: '0.0.0.0',
+		allowedHosts: true,
 		proxy: {
 			'/api': API_TARGET
 		}
 	},
 	preview: {
 		host: '0.0.0.0',
+		allowedHosts: true,
 		proxy: {
 			'/api': API_TARGET
 		}
