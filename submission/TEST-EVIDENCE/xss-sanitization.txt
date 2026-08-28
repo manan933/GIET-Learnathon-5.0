@@ -1,0 +1,41 @@
+================================================================================
+Test Evidence: Stored Cross-Site Scripting (XSS) Sanitization
+================================================================================
+
+1. Vulnerability Demonstrated (Before Hardening):
+------------------------------------------------
+- Frontend component `src/lib/components/app/comment-timeline.svelte` renders comment content using:
+  `<p class="mt-1 text-sm whitespace-pre-line">{@html comment.body}</p>`
+- Attack Payload Submitted in Comment:
+  `<script>alert(document.cookie)</script>` or `<img src=x onerror=alert(1)>`
+- Behavior Before: Payload was stored raw in database and rendered directly into the DOM as executable HTML, allowing arbitrary JavaScript execution.
+
+2. Remediation Verification (After Hardening):
+----------------------------------------------
+- Server-side encoder `sanitizeText` implemented in `src/server/security/sanitize.ts`.
+- Encodes all HTML special characters:
+  '&' -> '&amp;'
+  '<' -> '&lt;'
+  '>' -> '&gt;'
+  '"' -> '&quot;'
+  "'" -> '&#x27;'
+  '/' -> '&#x2F;'
+- Null bytes and non-printable control characters stripped.
+
+Test Case: Comment with Script Tag
+- Request: POST /api/grievances/GRV-0001/comments
+- Body: {"body":"Following up on the leak <script>alert(\"XSS\")</script>"}
+- Authenticated As: stu-1
+- Response Status: 201 Created
+- Saved Body: "Following up on the leak &lt;script&gt;alert(&quot;XSS&quot;)&lt;&#x2F;script&gt;"
+- DOM Rendering Result: The browser renders the literal text "<script>alert("XSS")</script>" on screen without executing any script.
+
+Test Case: Stored XSS in Grievance Description & Title
+- Request: POST /api/grievances
+- Body: {"title":"Test <img src=x onerror=alert(1)>","category":"Water","description":"Water problem with <svg onload=alert(2)> tag"}
+- Response Status: 201 Created
+- Saved Title: "Test &lt;img src=x onerror=alert(1)&gt;"
+- Saved Description: "Water problem with &lt;svg onload=alert(2)&gt; tag"
+
+Conclusion:
+All user-controlled strings are sanitized server-side, eliminating Stored XSS while allowing standard text wrapping and newlines to display cleanly.

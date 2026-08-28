@@ -1,0 +1,53 @@
+================================================================================
+Test Evidence: File Upload Security, Magic Bytes & Path Traversal Prevention
+================================================================================
+
+1. Vulnerability Demonstrated (Before Hardening):
+------------------------------------------------
+- Attacker could upload arbitrary executable files (PHP, shell scripts, HTML) by setting `Content-Type: image/png` in the HTTP header.
+- Attacker could supply traversal filenames (`../../evil.sh`) which were passed directly into disk writes.
+- Attachments had no server-side binary signature check.
+
+2. Remediation Verification (After Hardening):
+----------------------------------------------
+Test Case 1: Spoofed MIME Type Rejection (Shell script disguised as PNG)
+- Request: POST /api/grievances/GRV-0008/attachments
+- File Content: "#!/bin/sh\necho vulnerable"
+- Declared MIME: image/png
+- Filename: exploit.png
+- Response Status: 400 Bad Request
+- Response Body: {"error":"Uploaded file signature does not match permitted image format.","code":"bad_request"}
+
+Test Case 2: Non-Image File Rejection (Text file)
+- Request: POST /api/grievances/GRV-0008/attachments
+- File Content: "PlainTextNotes"
+- Declared MIME: text/plain
+- Filename: notes.txt
+- Response Status: 400 Bad Request
+- Response Body: {"error":"Attachments must be JPEG, PNG, GIF, or WebP images.","code":"bad_request"}
+
+Test Case 3: Oversized File Rejection (> 2MB)
+- Request: POST /api/grievances/GRV-0008/attachments
+- File Size: 2,097,153 bytes
+- Response Status: 400 Bad Request
+- Response Body: {"error":"Attachment must be 2 MB or smaller.","code":"bad_request"}
+
+Test Case 4: Storage Filename Randomization & Path Traversal Neutralization
+- Request: POST /api/grievances/GRV-0001/attachments
+- Filename in Form: "../../../../etc/cron.d/malicious.png"
+- Binary Content: Valid 1x1 PNG bytes
+- Result:
+  - Original display filename sanitized to: "malicious.png"
+  - Disk storage filename generated: "7c3e8a1f94d02b5e683f12a9b4c0e811.png"
+  - Stored inside canonical `uploads/` directory only.
+
+Test Case 5: Secure Serving Headers
+- Request: GET /api/attachments/att-1
+- Response Headers:
+  - Content-Type: image/jpeg
+  - X-Content-Type-Options: nosniff
+  - Content-Security-Policy: default-src 'none'; sandbox
+  - Cache-Control: private, no-cache, no-store, must-revalidate
+
+Conclusion:
+Uploaded files are strictly verified for real binary image headers, assigned random server-generated filenames, and served with sandboxing headers.

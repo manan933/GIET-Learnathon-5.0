@@ -1,0 +1,86 @@
+================================================================================
+HostelGrievance Hardened Test Suite Execution Output
+Command: npm test
+Test Framework: Vitest v4.1.11
+================================================================================
+
+ RUN  v4.1.11 D:/GIET-Learnathon-5.0
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > login works for dummy student and warden accounts with salted passwords
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.075Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > login works for dummy student and warden accounts with salted passwords
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.110Z","event":"auth_success","userId":"war-1","userRole":"warden","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > rejects invalid credentials and rate limits excessive attempts
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.214Z","event":"auth_failure","userId":"anonymous","userRole":"none","resource":"/api/login","ip":"127.0.0.1","detail":"Failed login attempt for email: student@example.test"}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > current-user works after login and session is destroyed in DB after logout
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.316Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > current-user works after login and session is destroyed in DB after logout
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.319Z","event":"logout","userId":"anonymous","userRole":"none","resource":"/api/logout","ip":"unknown","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > student can create a grievance
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.431Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > student can retrieve a permitted grievance
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.535Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > student cannot access another student’s grievance (IDOR protection)
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.645Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > student cannot access another student’s grievance (IDOR protection)
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.646Z","event":"access_denied","userId":"stu-1","userRole":"student","resource":"/api/grievances/GRV-0003","ip":"unknown","detail":"Unauthorized grievance retrieval attempt"}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > student cannot view or post comments on another student’s grievance (IDOR)
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.766Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > warden can access management functionality and all grievances
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.876Z","event":"auth_success","userId":"war-1","userRole":"warden","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > comments work for permitted users and sanitize HTML against XSS
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:23.987Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > status changes work for wardens and are forbidden for students
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.091Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > status changes work for wardens and are forbidden for students
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.124Z","event":"auth_success","userId":"war-1","userRole":"warden","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > attachment metadata, magic byte check, and storage work with IDOR authorization
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.230Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > attachment metadata, magic byte check, and storage work with IDOR authorization
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.238Z","event":"upload_success","userId":"stu-1","userRole":"none","resource":"/api/grievances/GRV-0009/attachments","ip":"unknown","detail":"Uploaded additional attachment: locker.png"}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > attachment metadata, magic byte check, and storage work with IDOR authorization
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.275Z","event":"auth_success","userId":"stu-2","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > attachment metadata, magic byte check, and storage work with IDOR authorization
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.276Z","event":"access_denied","userId":"stu-2","userRole":"student","resource":"/api/attachments/att-5","ip":"unknown","detail":"Unauthorized attachment download attempt for grievance GRV-0009"}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > rejects oversized, disallowed, or spoofed attachments
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.396Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > lets a student edit their own open grievance but not a resolved one or other student’s
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.529Z","event":"auth_success","userId":"stu-1","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > lets a student edit their own open grievance but not a resolved one or other student’s
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.568Z","event":"auth_success","userId":"stu-2","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > lets a student edit their own open grievance but not a resolved one or other student’s
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.569Z","event":"access_denied","userId":"stu-2","userRole":"student","resource":"/api/grievances/GRV-0008","ip":"unknown","detail":"Student attempted to modify another student grievance"}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > lets a student edit their own open grievance but not a resolved one or other student’s
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.605Z","event":"auth_success","userId":"stu-3","userRole":"student","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+stdout | src/server/app.test.ts > HostelGrievance Hardened API Suite > returns 404 for unknown grievance ids without leaking internals
+[SECURITY AUDIT] {"timestamp":"2026-08-28T10:42:24.795Z","event":"auth_success","userId":"war-1","userRole":"warden","resource":"/api/login","ip":"127.0.0.1","detail":""}
+
+ ✓ src/server/app.test.ts (15 tests) 1844ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  16:12:22
+   Duration  2.28s (transform 147ms, setup 0ms, import 243ms, tests 1.84s, environment 0ms)

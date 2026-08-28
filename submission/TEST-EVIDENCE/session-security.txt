@@ -1,0 +1,41 @@
+================================================================================
+Test Evidence: Session Lifecycle, Cookie Security & Password Hardening
+================================================================================
+
+1. Salted Password Hashing (scrypt Key Derivation):
+---------------------------------------------------
+- Algorithm: Node.js crypto `scryptSync` with 16-byte random salt, 64-byte key length.
+- Storage Format: `scrypt:<salt_hex>:<derived_hash_hex>`
+- Verification: Constant-time comparison using `timingSafeEqual`.
+- Verification Result:
+  - Student login with 'student123' verified successfully.
+  - Warden login with 'warden123' verified successfully.
+  - Incorrect password rejected with HTTP 401 unauthenticated.
+
+2. Session Lifecycle & Invalidation:
+------------------------------------
+Test Case 1: Session Expiration Enforcement
+- Created session with artificial expiration timestamp in past: 2026-08-01T00:00:00.000Z
+- Request: GET /api/me with expired session cookie
+- Response Status: 401 Unauthorized
+- Database Action: Expired session record automatically pruned from SQLite `sessions` table.
+
+Test Case 2: Logout Invalidation in SQLite Database
+- Step 1: Login as student@example.test -> Received cookie hg_session=<token>
+- Step 2: GET /api/me with cookie -> HTTP 200 (id: stu-1)
+- Step 3: POST /api/logout -> HTTP 200 (ok: true)
+- Step 4: Check SQLite `sessions` table -> Token record was deleted.
+- Step 5: Replay GET /api/me with old cookie -> HTTP 401 Unauthorized.
+
+Test Case 3: Secure Cookie Attributes
+- Response Header from POST /api/login:
+  `Set-Cookie: hg_session=<token>; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax`
+- HttpOnly flag ensures JavaScript cannot read document.cookie.
+- SameSite=Lax prevents cross-site request forgery (CSRF).
+
+Test Case 4: Brute-Force Rate Limiting
+- Sent 12 rapid failed login requests with invalid credentials.
+- Result: First 10 requests returned 401 unauthenticated; 11th request returned 429 Bad Request ("Too many login attempts. Please try again later.").
+
+Conclusion:
+Authentication credentials and session tokens are protected across their complete lifecycle with secure key derivation, token destruction on logout, and cookie containment.

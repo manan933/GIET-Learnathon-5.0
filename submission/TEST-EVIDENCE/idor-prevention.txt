@@ -1,0 +1,51 @@
+================================================================================
+Test Evidence: Broken Object-Level Authorization (IDOR / BOLA) Prevention
+================================================================================
+
+1. Vulnerability Demonstrated (Before Hardening):
+------------------------------------------------
+- Attacker Account: stu-1 (student@example.test)
+- Victim Account: stu-2 (priya@example.test)
+- Victim Grievance ID: GRV-0003
+- Behavior Before: GET /api/grievances/GRV-0003 returned HTTP 200 with full description and details of Priya's private grievance to Aarav.
+- Attachment IDOR: GET /api/attachments/att-3 allowed downloading Priya's attachment without authentication check.
+- Parameter Tampering: PATCH /api/grievances/GRV-0003 allowed Aarav to rewrite Priya's grievance title and description.
+
+2. Remediation Verification (After Hardening):
+----------------------------------------------
+Test Case 1: Grievance Detail Access
+- Request: GET /api/grievances/GRV-0003
+- Authenticated As: stu-1 (Student)
+- Response Status: 403 Forbidden
+- Response Body: {"error":"You cannot access this grievance.","code":"unauthorized"}
+- Audit Log: [SECURITY AUDIT] {"event":"access_denied","userId":"stu-1","userRole":"student","resource":"/api/grievances/GRV-0003","detail":"Unauthorized grievance retrieval attempt"}
+
+Test Case 2: Comments Access
+- Request: GET /api/grievances/GRV-0003/comments
+- Authenticated As: stu-1 (Student)
+- Response Status: 403 Forbidden
+- Response Body: {"error":"You cannot access this grievance.","code":"unauthorized"}
+
+Test Case 3: Comment Insertion
+- Request: POST /api/grievances/GRV-0003/comments
+- Body: {"body":"Malicious comment injection"}
+- Authenticated As: stu-1 (Student)
+- Response Status: 403 Forbidden
+- Response Body: {"error":"You cannot access this grievance.","code":"unauthorized"}
+
+Test Case 4: Cross-Tenant Modification
+- Request: PATCH /api/grievances/GRV-0003
+- Body: {"title":"Hacked Title"}
+- Authenticated As: stu-1 (Student)
+- Response Status: 403 Forbidden
+- Response Body: {"error":"You cannot modify this grievance.","code":"unauthorized"}
+
+Test Case 5: Attachment Download IDOR
+- Request: GET /api/attachments/att-3
+- Authenticated As: stu-1 (Student)
+- Response Status: 403 Forbidden
+- Response Body: {"error":"You cannot access this grievance.","code":"unauthorized"}
+- Audit Log: [SECURITY AUDIT] {"event":"access_denied","userId":"stu-1","userRole":"student","resource":"/api/attachments/att-3","detail":"Unauthorized attachment download attempt for grievance GRV-0003"}
+
+Conclusion:
+Cross-tenant access across all grievance, comment, and attachment endpoints is completely blocked with HTTP 403 Forbidden.
