@@ -47,10 +47,23 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  timestamp TEXT NOT NULL,
+  event TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  user_role TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  ip TEXT NOT NULL,
+  detail TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_grievances_student ON grievances(student_id);
 CREATE INDEX IF NOT EXISTS idx_comments_grievance ON comments(grievance_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_grievance ON attachments(grievance_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
 `;
 
 export function applySchema(db: Database): void {

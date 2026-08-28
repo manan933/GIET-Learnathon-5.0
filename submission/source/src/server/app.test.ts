@@ -370,4 +370,28 @@ describe('HostelGrievance Hardened API Suite', () => {
 		expect(json.code).toBe('not_found');
 		expect(JSON.stringify(json)).not.toMatch(/sqlite|stack|ENOENT/i);
 	});
+
+	it('audit logs endpoint enforces tenant isolation for students and full visibility for wardens', async () => {
+		const student1 = await login(app, 'student@example.test', 'student123');
+		const student2 = await login(app, 'priya@example.test', 'student123');
+		const warden = await login(app, 'warden@example.test', 'warden123');
+
+		// Student 1 logs
+		const s1Res = await app.request('/api/audit-logs', { headers: { Cookie: student1.cookie } });
+		expect(s1Res.status).toBe(200);
+		const s1Json = await s1Res.json();
+		expect(s1Json.data.every((l: { user_id: string }) => l.user_id === 'stu-1')).toBe(true);
+
+		// Student 2 logs
+		const s2Res = await app.request('/api/audit-logs', { headers: { Cookie: student2.cookie } });
+		expect(s2Res.status).toBe(200);
+		const s2Json = await s2Res.json();
+		expect(s2Json.data.every((l: { user_id: string }) => l.user_id === 'stu-2')).toBe(true);
+
+		// Warden logs (sees all logs)
+		const wRes = await app.request('/api/audit-logs', { headers: { Cookie: warden.cookie } });
+		expect(wRes.status).toBe(200);
+		const wJson = await wRes.json();
+		expect(wJson.data.length).toBeGreaterThanOrEqual(3);
+	});
 });

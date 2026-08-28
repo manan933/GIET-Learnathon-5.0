@@ -3,6 +3,8 @@ import type { Role } from '$lib/types';
 import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 import ClipboardListIcon from '@lucide/svelte/icons/clipboard-list';
 import PlusCircleIcon from '@lucide/svelte/icons/plus-circle';
+import HistoryIcon from '@lucide/svelte/icons/history';
+import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 
 export interface ShellNavItem {
 	label: string;
@@ -16,12 +18,14 @@ export function shellNav(role: Role): ShellNavItem[] {
 			return [
 				{ label: 'Dashboard', href: '/student', icon: LayoutDashboardIcon },
 				{ label: 'Grievances', href: '/student/grievances', icon: ClipboardListIcon },
-				{ label: 'New Grievance', href: '/student/grievances/new', icon: PlusCircleIcon }
+				{ label: 'New Grievance', href: '/student/grievances/new', icon: PlusCircleIcon },
+				{ label: 'Activity Log', href: '/student/logs', icon: HistoryIcon }
 			];
 		case 'warden':
 			return [
 				{ label: 'Dashboard', href: '/warden', icon: LayoutDashboardIcon },
-				{ label: 'Grievances', href: '/warden/grievances', icon: ClipboardListIcon }
+				{ label: 'Grievances', href: '/warden/grievances', icon: ClipboardListIcon },
+				{ label: 'Audit Logs', href: '/warden/logs', icon: ShieldCheckIcon }
 			];
 		default: {
 			const _exhaustive: never = role;

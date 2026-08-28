@@ -5,6 +5,8 @@ import { handleError, HttpError } from './http/errors.ts';
 import { authRoutes } from './routes/auth.ts';
 import { grievanceRoutes } from './routes/grievances.ts';
 import { attachmentRoutes } from './routes/attachments.ts';
+import { auditRoutes } from './routes/audit.ts';
+import { setAuditDb } from './security/audit.ts';
 import { cors } from 'hono/cors';
 
 export type CreateAppOptions = {
@@ -42,6 +44,7 @@ function isAllowedOrigin(origin: string): boolean {
 }
 
 export function createApp(options: CreateAppOptions) {
+	setAuditDb(options.db);
 	const app = new Hono<AppEnv>();
 
 	// Inject DB and storage context
@@ -88,6 +91,7 @@ export function createApp(options: CreateAppOptions) {
 	app.route('/api', authRoutes);
 	app.route('/api/grievances', grievanceRoutes);
 	app.route('/api/attachments', attachmentRoutes);
+	app.route('/api/audit-logs', auditRoutes);
 
 	app.all('/api/*', () => {
 		throw new HttpError(404, 'not_found', 'Not found.');
