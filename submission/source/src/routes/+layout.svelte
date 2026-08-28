@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import AppHeader from '$lib/components/app/app-header.svelte';
@@ -11,6 +12,42 @@
 
 	const user = $derived(getSession());
 	const showShell = $derived(!!user && page.url.pathname !== '/login');
+
+	onMount(() => {
+		function preventContextMenu(e: MouseEvent) {
+			e.preventDefault();
+		}
+
+		function preventInspectKeys(e: KeyboardEvent) {
+			// Disable F12
+			if (e.key === 'F12') {
+				e.preventDefault();
+				return;
+			}
+			// Disable Ctrl+Shift+I / J / C / S or Cmd+Option+I / J / C
+			if (
+				(e.ctrlKey || e.metaKey) &&
+				(e.shiftKey || e.altKey) &&
+				['I', 'i', 'J', 'j', 'C', 'c', 'S', 's'].includes(e.key)
+			) {
+				e.preventDefault();
+				return;
+			}
+			// Disable Ctrl+U / Cmd+U (View Source)
+			if ((e.ctrlKey || e.metaKey) && ['u', 'U'].includes(e.key)) {
+				e.preventDefault();
+				return;
+			}
+		}
+
+		window.addEventListener('contextmenu', preventContextMenu);
+		window.addEventListener('keydown', preventInspectKeys);
+
+		return () => {
+			window.removeEventListener('contextmenu', preventContextMenu);
+			window.removeEventListener('keydown', preventInspectKeys);
+		};
+	});
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
