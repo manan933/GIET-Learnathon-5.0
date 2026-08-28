@@ -1,5 +1,5 @@
 import { createApp } from '../../../server/app.ts';
-import { DEFAULT_DB_PATH, DEFAULT_UPLOADS_DIR } from '../../../server/config.ts';
+import { getDbPath, getUploadsDir } from '../../../server/config.ts';
 import { openDatabase } from '../../../server/db/connection.ts';
 import { userCount } from '../../../server/db/queries.ts';
 import { seedDatabase } from '../../../server/db/seed.ts';
@@ -10,8 +10,8 @@ let appInstance: ReturnType<typeof createApp> | null = null;
 
 function getApp() {
 	if (!appInstance) {
-		const dbPath = DEFAULT_DB_PATH;
-		const uploadsDir = DEFAULT_UPLOADS_DIR;
+		const dbPath = getDbPath();
+		const uploadsDir = getUploadsDir();
 		ensureUploadsDir(uploadsDir);
 		const db = openDatabase(dbPath);
 		if (userCount(db) === 0) {

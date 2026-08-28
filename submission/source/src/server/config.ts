@@ -5,13 +5,21 @@ const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export const REPO_ROOT = path.resolve(SERVER_DIR, '../..');
 
-export const DEFAULT_DB_PATH =
-	process.env.HOSTEL_DB_PATH ??
-	(process.env.VERCEL ? path.join('/tmp', 'hostel.db') : path.join(REPO_ROOT, 'data', 'hostel.db'));
+export function getDbPath(): string {
+	if (process.env.HOSTEL_DB_PATH) return process.env.HOSTEL_DB_PATH;
+	if (process.env.VERCEL) return path.join('/tmp', 'hostel.db');
+	return path.join(REPO_ROOT, 'data', 'hostel.db');
+}
 
-export const DEFAULT_UPLOADS_DIR =
-	process.env.HOSTEL_UPLOADS_DIR ??
-	(process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(REPO_ROOT, 'uploads'));
+export function getUploadsDir(): string {
+	if (process.env.HOSTEL_UPLOADS_DIR) return process.env.HOSTEL_UPLOADS_DIR;
+	if (process.env.VERCEL) return path.join('/tmp', 'uploads');
+	return path.join(REPO_ROOT, 'uploads');
+}
+
+export const DEFAULT_DB_PATH = getDbPath();
+
+export const DEFAULT_UPLOADS_DIR = getUploadsDir();
 
 export const API_PORT = Number(process.env.HOSTEL_API_PORT ?? 3001);
 

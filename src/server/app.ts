@@ -23,6 +23,23 @@ const ALLOWED_ORIGINS = new Set([
 	'http://127.0.0.1:4173'
 ]);
 
+function isAllowedOrigin(origin: string): boolean {
+	if (ALLOWED_ORIGINS.has(origin)) return true;
+	try {
+		const parsed = new URL(origin);
+		if (
+			parsed.hostname.endsWith('.vercel.app') ||
+			parsed.hostname === 'localhost' ||
+			parsed.hostname === '127.0.0.1'
+		) {
+			return true;
+		}
+	} catch {
+		return false;
+	}
+	return false;
+}
+
 export function createApp(options: CreateAppOptions) {
 	const app = new Hono<AppEnv>();
 
@@ -41,12 +58,12 @@ export function createApp(options: CreateAppOptions) {
 		c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
 	});
 
-	// Restricted CORS policy: only allow trusted local origins with credentials
+	// Restricted CORS policy: allows local origins and verified *.vercel.app deployment domains
 	app.use(
 		'/api/*',
 		cors({
 			origin: (origin) => {
-				if (!origin || ALLOWED_ORIGINS.has(origin)) {
+				if (!origin || isAllowedOrigin(origin)) {
 					return origin ?? 'http://localhost:5173';
 				}
 				return null;
