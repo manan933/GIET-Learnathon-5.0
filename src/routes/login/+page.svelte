@@ -12,21 +12,32 @@
 	let error = $state<string | null>(null);
 	let submitting = $state(false);
 
+	const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
 
-		if (!email.trim()) {
-			error = 'Email is required.';
+		const trimmedEmail = email.trim();
+		if (!trimmedEmail) {
+			error = 'Email address is required.';
+			return;
+		}
+		if (!EMAIL_REGEX.test(trimmedEmail)) {
+			error = 'Please enter a valid email address.';
 			return;
 		}
 		if (!password) {
 			error = 'Password is required.';
 			return;
 		}
+		if (password.length < 6) {
+			error = 'Password must be at least 6 characters.';
+			return;
+		}
 
 		submitting = true;
-		const result = await signIn(email, password);
+		const result = await signIn(trimmedEmail, password);
 		submitting = false;
 
 		if (result.ok) {

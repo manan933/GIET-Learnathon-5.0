@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toast } from 'svelte-sonner';
 	import { Card, CardContent } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -19,8 +20,11 @@
 	} = $props();
 
 	let inputEl: HTMLInputElement | null = $state(null);
-	// Force re-render of the input value after remove so re-selecting the same file works.
 	let inputKey = $state(0);
+	let fileError = $state<string | null>(null);
+
+	const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+	const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 	function formatSize(bytes: number): string {
 		if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -31,11 +35,30 @@
 	function handleChange(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
-		if (file) onSelect(file);
+		if (!file) return;
+
+		fileError = null;
+
+		if (file.size > MAX_BYTES) {
+			fileError = `File size (${formatSize(file.size)}) exceeds the 2 MB limit.`;
+			toast.error(fileError);
+			if (inputEl) inputEl.value = '';
+			return;
+		}
+
+		if (file.type && !ALLOWED_TYPES.has(file.type.toLowerCase())) {
+			fileError = 'Only image files (JPEG, PNG, GIF, WebP) are allowed.';
+			toast.error(fileError);
+			if (inputEl) inputEl.value = '';
+			return;
+		}
+
+		onSelect(file);
 	}
 
 	function handleRemove() {
 		onRemove();
+		fileError = null;
 		if (inputEl) inputEl.value = '';
 		inputKey += 1;
 	}
@@ -82,6 +105,9 @@
 				</Button>
 			</CardContent>
 		</Card>
+		{#if fileError}
+			<p class="text-destructive text-sm" role="alert">{fileError}</p>
+		{/if}
 		<input
 			bind:this={inputEl}
 			id="attachment-input"

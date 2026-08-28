@@ -23,6 +23,10 @@
 			error = 'Comment cannot be empty.';
 			return;
 		}
+		if (trimmed.length > 5000) {
+			error = 'Comment cannot exceed 5000 characters.';
+			return;
+		}
 		error = null;
 		const ok = await onSubmit(trimmed);
 		if (ok) {
