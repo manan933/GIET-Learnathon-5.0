@@ -8,11 +8,7 @@ export function openDatabase(path: string): Database.Database {
 		mkdirSync(dirname(path), { recursive: true });
 	}
 	const db = new Database(path);
-	try {
-		db.pragma(process.env.VERCEL ? 'journal_mode = DELETE' : 'journal_mode = WAL');
-	} catch {
-		db.pragma('journal_mode = DELETE');
-	}
+	db.pragma('journal_mode = WAL');
 	db.pragma('foreign_keys = ON');
 	applySchema(db);
 	return db;

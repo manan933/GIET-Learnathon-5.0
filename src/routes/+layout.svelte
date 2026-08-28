@@ -1,15 +1,11 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import { dev } from '$app/environment';
 	import { page } from '$app/state';
-	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import AppHeader from '$lib/components/app/app-header.svelte';
 	import AppSidebar from '$lib/components/app/app-sidebar.svelte';
 	import { getSession } from '$lib/stores/auth.svelte';
-
-	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	let { children } = $props();
 

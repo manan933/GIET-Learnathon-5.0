@@ -28,7 +28,6 @@ function isAllowedOrigin(origin: string): boolean {
 	try {
 		const parsed = new URL(origin);
 		if (
-			parsed.hostname.endsWith('.vercel.app') ||
 			parsed.hostname.endsWith('.onrender.com') ||
 			parsed.hostname.endsWith('.render.com') ||
 			parsed.hostname === 'localhost' ||
@@ -60,7 +59,7 @@ export function createApp(options: CreateAppOptions) {
 		c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
 	});
 
-	// Restricted CORS policy: allows local origins and verified deployment domains (vercel.app, onrender.com)
+	// Restricted CORS policy: allows local origins and verified deployment domains (onrender.com)
 	app.use(
 		'/api/*',
 		cors({

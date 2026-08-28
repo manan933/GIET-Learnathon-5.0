@@ -1,6 +1,6 @@
 Contact: mailto:security@giet.edu
 Expires: 2027-12-31T23:59:59.000Z
 Preferred-Languages: en
-Policy: https://hostelgrievance.vercel.app/
-Acknowledgments: https://hostelgrievance.vercel.app/
-Canonical: https://hostelgrievance.vercel.app/.well-known/security.txt
+Policy: https://giet-learnathon-5-0.onrender.com/
+Acknowledgments: https://giet-learnathon-5-0.onrender.com/
+Canonical: https://giet-learnathon-5-0.onrender.com/.well-known/security.txt
