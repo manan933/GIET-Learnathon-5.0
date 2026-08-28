@@ -24,22 +24,45 @@ The application will be accessible at:
 
 ---
 
-## 2. Production Build & Execution
+## 2. Deploying to Render.com (Persistent SQLite)
+
+### Method A: 1-Click Blueprint (Recommended)
+1. Go to [dashboard.render.com](https://dashboard.render.com/) -> **New** -> **Blueprint**.
+2. Connect your GitHub repository (`GIET-Learnathon-5.0`).
+3. Render will automatically read `render.yaml` and configure:
+   - **Build Command**: `npm ci && npm run build`
+   - **Start Command**: `npm start`
+   - **Environment**: Node.js with persistent storage
+
+### Method B: Manual Web Service
+1. In Render Dashboard, click **New** -> **Web Service**.
+2. Select your repository.
+3. Settings:
+   - **Runtime**: `Node`
+   - **Build Command**: `npm ci && npm run build`
+   - **Start Command**: `npm start`
+   - **Environment Variables**:
+     - `NODE_ENV`: `production`
+     - `HOSTEL_API_PORT`: `3001`
+     - `HOSTEL_DB_PATH`: `./data/hostel.db`
+     - `HOSTEL_UPLOADS_DIR`: `./uploads`
+4. Click **Deploy Web Service**.
+
+---
+
+## 3. Production Build & Local Execution
 
 ```bash
 # 1. Build the production SvelteKit client
 npm run build
 
-# 2. Run API server in production mode
-NODE_ENV=production HOSTEL_API_PORT=3001 tsx src/server/index.ts
-
-# 3. Serve the preview build
-npm run preview
+# 2. Start production preview & API server
+npm start
 ```
 
 ---
 
-## 3. Docker Deployment
+## 4. Docker Deployment
 
 ### Build Container:
 ```bash
@@ -59,7 +82,7 @@ docker run -d \
 
 ---
 
-## 4. Verification & Testing
+## 5. Verification & Testing
 
 Execute the automated test suite:
 ```bash

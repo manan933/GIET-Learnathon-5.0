@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: hostelgrievance
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOSTEL_API_PORT
+        value: "3001"
+      - key: HOSTEL_DB_PATH
+        value: ./data/hostel.db
+      - key: HOSTEL_UPLOADS_DIR
+        value: ./uploads

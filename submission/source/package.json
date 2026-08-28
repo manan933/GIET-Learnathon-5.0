@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"dev:api": "tsx watch src/server/index.ts",
 		"dev:all": "concurrently -k -n ui,api -c cyan,magenta \"npm run dev\" \"npm run dev:api\"",
+		"start": "concurrently -k -n ui,api -c cyan,magenta \"vite preview --port ${PORT:-5173}\" \"tsx src/server/index.ts\"",
 		"db:init": "tsx src/server/scripts/reset-db.ts",
 		"db:reset": "tsx src/server/scripts/reset-db.ts",
 		"test": "vitest run",
