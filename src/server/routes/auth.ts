@@ -55,8 +55,8 @@ authRoutes.post('/login', async (c) => {
 		);
 	}
 
-	// 2. IP Rate limiting: max 25 login attempts per 60 seconds per IP
-	const limit = checkRateLimit('login', clientIp, 25, 60_000);
+	// 2. IP Rate limiting: max 30 login attempts per 60 seconds per IP
+	const limit = checkRateLimit('login', clientIp, 30, 60_000);
 	if (!limit.allowed) {
 		logSecurityEvent(
 			{
@@ -72,7 +72,7 @@ authRoutes.post('/login', async (c) => {
 
 	const user = findUserByEmail(db, email);
 	if (!user || !verifyPassword(password, user.password_hash)) {
-		// Record failed attempt (triggers progressive 1m/15m lockouts & session invalidation at 3+)
+		// Record failed attempt (triggers 10s lock at 3 fails, and 15s lock at 5+ fails)
 		const failResult = recordFailedAttempt(email, clientIp, db, user?.id);
 
 		logSecurityEvent(
@@ -95,7 +95,12 @@ authRoutes.post('/login', async (c) => {
 			);
 		}
 
-		throw new HttpError(401, 'unauthenticated', 'Invalid email or password.');
+		const attemptsNote =
+			failResult.attempts < 3
+				? ` (Attempt ${failResult.attempts} of 3)`
+				: ` (Attempt ${failResult.attempts} of 5)`;
+
+		throw new HttpError(401, 'unauthenticated', `Invalid email or password.${attemptsNote}`);
 	}
 
 	// Successful login: reset failed counters and rate limiters

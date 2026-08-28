@@ -66,14 +66,12 @@ export function recordFailedAttempt(
 	record.failedAttempts += 1;
 	record.lastAttemptAt = now;
 
-	// Thresholds for live judge demonstration:
-	// >= 5 attempts -> 15 seconds lock
-	// >= 3 attempts -> 10 seconds lock
+	// Precise threshold triggers:
+	// - Attempt 3 triggers 10s lock
+	// - Attempt 4 is NOT locked (gives 1 more chance)
+	// - Attempt 5+ triggers 15s lock
 	if (record.failedAttempts >= 5) {
-		const targetLock = now + LOCK_5_FAILS_MS;
-		if (!record.lockedUntil || record.lockedUntil < targetLock) {
-			record.lockedUntil = targetLock;
-		}
+		record.lockedUntil = now + LOCK_5_FAILS_MS;
 
 		logSecurityEvent(
 			{
@@ -85,10 +83,8 @@ export function recordFailedAttempt(
 			},
 			db
 		);
-	} else if (record.failedAttempts >= 3) {
-		if (!record.lockedUntil || record.lockedUntil <= now) {
-			record.lockedUntil = now + LOCK_3_FAILS_MS;
-		}
+	} else if (record.failedAttempts === 3) {
+		record.lockedUntil = now + LOCK_3_FAILS_MS;
 
 		logSecurityEvent(
 			{
