@@ -66,9 +66,6 @@
 	});
 </script>
 
-<svelte:window oncontextmenu={(e) => { if (e.cancelable) e.preventDefault(); return false; }} />
-<svelte:body oncontextmenu={(e) => { if (e.cancelable) e.preventDefault(); return false; }} />
-
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 <Toaster position="bottom-right" richColors />
 <div class={showShell ? 'bg-muted/30 flex min-h-svh flex-col' : 'contents'}>

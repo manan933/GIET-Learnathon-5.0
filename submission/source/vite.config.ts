@@ -14,9 +14,8 @@ const SECURITY_HEADERS = {
 	'X-XSS-Protection': '0',
 	'Cross-Origin-Resource-Policy': 'same-origin',
 	'Cross-Origin-Opener-Policy': 'same-origin',
-	'Cross-Origin-Embedder-Policy': 'credentialless',
 	'Content-Security-Policy':
-		"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
 };
 
 export default defineConfig({
