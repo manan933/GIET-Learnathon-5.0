@@ -5,7 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
-	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
+	import HistoryIcon from '@lucide/svelte/icons/history';
 
 	interface AuditEntry {
 		id: string;
@@ -63,11 +63,11 @@
 	});
 </script>
 
-<svelte:head><title>System Audit Logs · HostelGrievance</title></svelte:head>
+<svelte:head><title>Activity Log · HostelGrievance</title></svelte:head>
 
 <PageHeader
-	title="System Audit & Security Logs"
-	description="Comprehensive digital audit trail of all authentication, grievance operations, status changes, and access control events."
+	title="System Activity Logs"
+	description="Comprehensive digital activity trail of all authentication, grievance operations, comments, status changes, and access events."
 >
 	{#snippet actions()}
 		<Button variant="outline" size="sm" onclick={loadLogs} disabled={loading}>
@@ -80,16 +80,16 @@
 <Card class="mt-4">
 	<CardHeader>
 		<div class="flex items-center gap-2">
-			<ShieldAlertIcon class="text-primary size-5" />
-			<CardTitle>Global Audit Trail</CardTitle>
+			<HistoryIcon class="text-primary size-5" />
+			<CardTitle>Global Activity Trail</CardTitle>
 		</div>
-		<CardDescription>Live real-time stream of all user activities and security authorization checks across the hostel portal.</CardDescription>
+		<CardDescription>Live real-time stream of all user activities, comments, and security events across the hostel portal.</CardDescription>
 	</CardHeader>
 	<CardContent>
 		{#if loading && logs.length === 0}
-			<p class="text-muted-foreground text-center py-8 text-sm">Loading system audit logs…</p>
+			<p class="text-muted-foreground text-center py-8 text-sm">Loading system activity logs…</p>
 		{:else if logs.length === 0}
-			<p class="text-muted-foreground text-center py-8 text-sm">No audit entries recorded yet.</p>
+			<p class="text-muted-foreground text-center py-8 text-sm">No activity entries recorded yet.</p>
 		{:else}
 			<div class="rounded-md border overflow-x-auto">
 				<Table>
@@ -99,7 +99,7 @@
 							<TableHead class="w-[140px]">Event</TableHead>
 							<TableHead class="w-[100px]">User</TableHead>
 							<TableHead class="w-[80px]">Role</TableHead>
-							<TableHead>Details / Resource</TableHead>
+							<TableHead>Details / Content</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>

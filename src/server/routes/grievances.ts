@@ -233,12 +233,15 @@ grievanceRoutes.post('/:id/comments', async (c) => {
 	).run(id, row.id, user.id, sanitizedBody, ts);
 	touchGrievance(db, row.id, ts);
 
+	const roleLabel = user.role === 'warden' ? 'Warden' : 'Student';
+	const snippet = sanitizedBody.length > 100 ? `${sanitizedBody.slice(0, 100)}…` : sanitizedBody;
+
 	logSecurityEvent({
 		type: 'comment_create',
 		userId: user.id,
 		userRole: user.role,
 		resource: `/api/grievances/${row.id}/comments`,
-		detail: `Added comment #${id} to grievance ${row.id}`
+		detail: `${roleLabel} commented on ${row.id}: "${snippet}"`
 	});
 
 	const author = findUserById(db, user.id);

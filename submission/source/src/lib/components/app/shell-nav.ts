@@ -4,7 +4,6 @@ import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 import ClipboardListIcon from '@lucide/svelte/icons/clipboard-list';
 import PlusCircleIcon from '@lucide/svelte/icons/plus-circle';
 import HistoryIcon from '@lucide/svelte/icons/history';
-import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 
 export interface ShellNavItem {
 	label: string;
@@ -25,7 +24,7 @@ export function shellNav(role: Role): ShellNavItem[] {
 			return [
 				{ label: 'Dashboard', href: '/warden', icon: LayoutDashboardIcon },
 				{ label: 'Grievances', href: '/warden/grievances', icon: ClipboardListIcon },
-				{ label: 'Audit Logs', href: '/warden/logs', icon: ShieldCheckIcon }
+				{ label: 'Activity Log', href: '/warden/logs', icon: HistoryIcon }
 			];
 		default: {
 			const _exhaustive: never = role;
