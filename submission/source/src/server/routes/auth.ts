@@ -48,15 +48,21 @@ authRoutes.post('/login', async (c) => {
 	// 1. Account Lockout & IP Jailing Check
 	const lockStatus = checkLockout(email, clientIp);
 	if (lockStatus.locked) {
+		// Increment counter on repeated attempts while locked so persistent hammering escalates to 15m lock
+		const updatedStatus = recordFailedAttempt(email, clientIp, db);
+		const durationMsg =
+			updatedStatus.remainingSeconds > 60
+				? `${Math.ceil(updatedStatus.remainingSeconds / 60)} minutes`
+				: `${updatedStatus.remainingSeconds} seconds`;
 		throw new HttpError(
 			429,
 			'bad_request',
-			`Account temporarily locked due to multiple failed login attempts. Please try again in ${lockStatus.remainingSeconds} seconds.`
+			`Account temporarily locked due to consecutive failed attempts (${updatedStatus.attempts} failures). Try again in ${updatedStatus.remainingSeconds}s.`
 		);
 	}
 
-	// 2. Rate limiting: max 10 login attempts per 60 seconds per IP
-	const limit = checkRateLimit('login', clientIp, 10, 60_000);
+	// 2. Rate limiting: max 15 login attempts per 60 seconds per IP
+	const limit = checkRateLimit('login', clientIp, 15, 60_000);
 	if (!limit.allowed) {
 		logSecurityEvent(
 			{
@@ -88,10 +94,14 @@ authRoutes.post('/login', async (c) => {
 		);
 
 		if (failResult.locked) {
+			const durationMsg =
+				failResult.remainingSeconds > 60
+					? `${Math.ceil(failResult.remainingSeconds / 60)} minutes`
+					: `${failResult.remainingSeconds} seconds`;
 			throw new HttpError(
 				429,
 				'bad_request',
-				`Account locked for security (${failResult.remainingSeconds}s remaining). Please wait before retrying.`
+				`Account locked for security due to ${failResult.attempts} failed attempts. Try again in ${failResult.remainingSeconds}s.`
 			);
 		}
 

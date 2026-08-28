@@ -59,7 +59,9 @@ export function recordFailedAttempt(
 	record.failedAttempts += 1;
 	record.lastAttemptAt = now;
 
-	// Progressive lockout thresholds
+	// Progressive lockout thresholds:
+	// >= 5 attempts -> 15 minutes lockout (900 seconds)
+	// >= 3 attempts -> 1 minute lockout (60 seconds)
 	if (record.failedAttempts >= 5) {
 		record.lockedUntil = now + LOCK_15_MIN_MS;
 		logSecurityEvent(

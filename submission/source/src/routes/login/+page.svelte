@@ -6,16 +6,53 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { signIn } from '$lib/stores/auth.svelte';
 	import SchoolIcon from '@lucide/svelte/icons/school';
+	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
+	import TimerIcon from '@lucide/svelte/icons/timer';
+	import { onDestroy } from 'svelte';
 
 	let email = $state('');
 	let password = $state('');
 	let error = $state<string | null>(null);
 	let submitting = $state(false);
 
+	// Live Countdown Timer for Lockout
+	let remainingSeconds = $state(0);
+	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
 	const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	function startCountdown(seconds: number) {
+		if (countdownInterval) clearInterval(countdownInterval);
+		remainingSeconds = seconds;
+
+		countdownInterval = setInterval(() => {
+			if (remainingSeconds > 1) {
+				remainingSeconds -= 1;
+			} else {
+				remainingSeconds = 0;
+				if (countdownInterval) clearInterval(countdownInterval);
+				countdownInterval = null;
+				error = null;
+			}
+		}, 1000);
+	}
+
+	onDestroy(() => {
+		if (countdownInterval) clearInterval(countdownInterval);
+	});
+
+	function formatTime(seconds: number): string {
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		if (mins > 0) {
+			return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+		}
+		return `${secs}s`;
+	}
 
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
+		if (remainingSeconds > 0) return; // Prevent submission while locked
 		error = null;
 
 		const trimmedEmail = email.trim();
@@ -46,7 +83,17 @@
 			const user = getSession();
 			await goto(user?.role === 'warden' ? '/warden' : '/student', { replaceState: true });
 		} else {
-			error = result.error ?? 'Sign-in failed. Please try again.';
+			const errMsg = result.error ?? 'Sign-in failed. Please try again.';
+			error = errMsg;
+
+			// Extract seconds from error string if locked (e.g. "... in 60s" or "... in 899s")
+			const match = /in\s+(\d+)s/i.exec(errMsg) || /in\s+(\d+)\s+seconds/i.exec(errMsg);
+			if (match) {
+				const secs = Number.parseInt(match[1], 10);
+				if (!Number.isNaN(secs) && secs > 0) {
+					startCountdown(secs);
+				}
+			}
 		}
 	}
 </script>
@@ -82,6 +129,7 @@
 							placeholder="you@giet.edu"
 							bind:value={email}
 							aria-invalid={error ? 'true' : undefined}
+							disabled={remainingSeconds > 0}
 						/>
 					</div>
 					<div class="space-y-1.5">
@@ -93,15 +141,39 @@
 							placeholder="••••••••"
 							bind:value={password}
 							aria-invalid={error ? 'true' : undefined}
+							disabled={remainingSeconds > 0}
 						/>
 					</div>
 
-					{#if error}
-						<p class="text-destructive text-sm" role="alert">{error}</p>
+					{#if remainingSeconds > 0}
+						<div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive flex items-start gap-2 text-xs animate-pulse" role="alert">
+							<TimerIcon class="size-4 shrink-0 mt-0.5" />
+							<div>
+								<p class="font-semibold">Security Lock Active</p>
+								<p class="mt-0.5">
+									Try again in <span class="font-mono font-bold text-sm underline">{formatTime(remainingSeconds)}</span>
+								</p>
+							</div>
+						</div>
+					{:else if error}
+						<div class="flex items-center gap-1.5 text-destructive text-sm" role="alert">
+							<ShieldAlertIcon class="size-4 shrink-0" />
+							<span>{error}</span>
+						</div>
 					{/if}
 
-					<Button type="submit" class="w-full" disabled={submitting}>
-						{submitting ? 'Signing in…' : 'Sign in'}
+					<Button
+						type="submit"
+						class="w-full"
+						disabled={submitting || remainingSeconds > 0}
+					>
+						{#if remainingSeconds > 0}
+							Locked ({formatTime(remainingSeconds)})
+						{:else if submitting}
+							Signing in…
+						{:else}
+							Sign in
+						{/if}
 					</Button>
 				</form>
 			</CardContent>
