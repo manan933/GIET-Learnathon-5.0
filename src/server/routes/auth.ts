@@ -103,7 +103,10 @@ authRoutes.post('/login', async (c) => {
 	recordSuccessfulLogin(email);
 
 	// 3. Anomalous Geo-IP & Impossible Travel Check
-	const travel = checkImpossibleTravel(user.id, clientIp);
+	const cfCity = c.req.header('cf-ipcity');
+	const cfCountry = c.req.header('cf-ipcountry');
+	const travel = checkImpossibleTravel(user.id, clientIp, cfCity, cfCountry);
+
 	if (travel.isAnomalous) {
 		logSecurityEvent(
 			{

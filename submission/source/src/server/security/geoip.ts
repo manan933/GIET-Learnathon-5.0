@@ -39,20 +39,25 @@ export function calculateDistanceKm(
 /**
  * Determine geolocation based on IP address and headers.
  */
-export function resolveGeoLocation(ip: string): GeoLocation {
-	if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
-		return { city: 'Gunupur', country: 'India', lat: 19.0475, lon: 83.8183 };
+export function resolveGeoLocation(ip: string, cfCity?: string, cfCountry?: string): GeoLocation {
+	if (cfCity && cfCountry) {
+		return { city: cfCity, country: cfCountry, lat: 19.0475, lon: 83.8183 };
 	}
 
-	// Pseudo-deterministic lookup for test IP addresses to enable reproducible testing
-	const hash = ip.split('.').reduce((acc, octet) => acc + Number.parseInt(octet, 10) || 0, 0);
-	if (hash % 3 === 0) {
-		return { city: 'Bhubaneswar', country: 'India', lat: 20.2961, lon: 85.8245 };
+	// Localhost, private networks, or default university campus
+	if (
+		ip === '127.0.0.1' ||
+		ip === '::1' ||
+		ip.startsWith('192.168.') ||
+		ip.startsWith('10.') ||
+		ip.startsWith('172.') ||
+		ip === 'unknown'
+	) {
+		return { city: 'Gunupur (GIET Campus)', country: 'India', lat: 19.0475, lon: 83.8183 };
 	}
-	if (hash % 3 === 1) {
-		return { city: 'London', country: 'United Kingdom', lat: 51.5074, lon: -0.1278 };
-	}
-	return { city: 'Singapore', country: 'Singapore', lat: 1.3521, lon: 103.8198 };
+
+	// Default to university region (Odisha, India) for standard connections
+	return { city: 'Gunupur, Odisha', country: 'India', lat: 19.0475, lon: 83.8183 };
 }
 
 /**
@@ -60,9 +65,11 @@ export function resolveGeoLocation(ip: string): GeoLocation {
  */
 export function checkImpossibleTravel(
 	userId: string,
-	ip: string
+	ip: string,
+	cfCity?: string,
+	cfCountry?: string
 ): { isAnomalous: boolean; speedKmh: number; prevLocation?: string; currentLocation: string } {
-	const currentGeo = resolveGeoLocation(ip);
+	const currentGeo = resolveGeoLocation(ip, cfCity, cfCountry);
 	const now = Date.now();
 	const prev = userLoginHistory.get(userId);
 
