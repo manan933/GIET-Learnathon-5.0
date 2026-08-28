@@ -144,8 +144,8 @@ grievanceRoutes.post('/', async (c) => {
 		const stored = newStoredName(upload.type);
 		writeStoredFile(uploadsDir, stored, bytes);
 		db.prepare(
-			`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+			`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, data_base64, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 		).run(
 			nextAttachmentId(db),
 			id,
@@ -153,6 +153,7 @@ grievanceRoutes.post('/', async (c) => {
 			stored,
 			upload.type,
 			bytes.byteLength,
+			bytes.toString('base64'),
 			ts
 		);
 		logSecurityEvent({
@@ -283,9 +284,9 @@ grievanceRoutes.post('/:id/attachments', async (c) => {
 	writeStoredFile(c.get('uploadsDir'), stored, bytes);
 	const id = nextAttachmentId(db);
 	db.prepare(
-		`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-	).run(id, row.id, originalBasename(upload.name), stored, upload.type, bytes.byteLength, ts);
+		`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, data_base64, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	).run(id, row.id, originalBasename(upload.name), stored, upload.type, bytes.byteLength, bytes.toString('base64'), ts);
 	touchGrievance(db, row.id, ts);
 
 	logSecurityEvent({

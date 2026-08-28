@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS attachments (
   stored_filename TEXT NOT NULL,
   mime_type TEXT NOT NULL,
   size_bytes INTEGER NOT NULL,
+  data_base64 TEXT,
   created_at TEXT NOT NULL
 );
 
