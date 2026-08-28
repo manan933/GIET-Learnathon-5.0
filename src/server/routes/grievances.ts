@@ -53,12 +53,26 @@ grievanceRoutes.post('/', async (c) => {
 	const uploadsDir = c.get('uploadsDir');
 	const user = requireUser(c, db);
 	if (user.role !== 'student') {
+		logSecurityEvent({
+			type: 'access_denied',
+			userId: user.id,
+			userRole: user.role,
+			resource: '/api/grievances',
+			detail: 'Non-student attempted to file a grievance'
+		});
 		throw new HttpError(403, 'unauthorized', 'Only students can file grievances.');
 	}
 
 	// Rate limit: max 20 grievance filings per 10 minutes per student
 	const rate = checkRateLimit('create_grievance', user.id, 20, 600_000);
 	if (!rate.allowed) {
+		logSecurityEvent({
+			type: 'rate_limit_exceeded',
+			userId: user.id,
+			userRole: user.role,
+			resource: '/api/grievances',
+			detail: 'Rate limit exceeded for grievance creation'
+		});
 		throw new HttpError(429, 'bad_request', 'Too many grievances filed. Please try again later.');
 	}
 
@@ -117,6 +131,14 @@ grievanceRoutes.post('/', async (c) => {
      VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
 	).run(id, user.id, sanitizedTitle, parsedCategory, sanitizedDescription, ts, ts);
 
+	logSecurityEvent({
+		type: 'grievance_create',
+		userId: user.id,
+		userRole: user.role,
+		resource: `/api/grievances/${id}`,
+		detail: `Created grievance "${sanitizedTitle}" [Category: ${parsedCategory}]`
+	});
+
 	if (upload) {
 		const bytes = await bufferFromUpload(upload);
 		const stored = newStoredName(upload.type);
@@ -136,6 +158,7 @@ grievanceRoutes.post('/', async (c) => {
 		logSecurityEvent({
 			type: 'upload_success',
 			userId: user.id,
+			userRole: user.role,
 			resource: `/api/grievances/${id}`,
 			detail: `Uploaded attachment: ${originalBasename(upload.name)} (${bytes.byteLength} bytes)`
 		});
@@ -173,6 +196,13 @@ grievanceRoutes.post('/:id/comments', async (c) => {
 	// Rate limit comment postings (max 30 comments per 5 minutes per user)
 	const rate = checkRateLimit('post_comment', user.id, 30, 300_000);
 	if (!rate.allowed) {
+		logSecurityEvent({
+			type: 'rate_limit_exceeded',
+			userId: user.id,
+			userRole: user.role,
+			resource: `/api/grievances/${row.id}/comments`,
+			detail: 'Rate limit exceeded for comments'
+		});
 		throw new HttpError(429, 'bad_request', 'Too many comments posted. Please try again later.');
 	}
 
@@ -202,6 +232,14 @@ grievanceRoutes.post('/:id/comments', async (c) => {
 		`INSERT INTO comments (id, grievance_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)`
 	).run(id, row.id, user.id, sanitizedBody, ts);
 	touchGrievance(db, row.id, ts);
+
+	logSecurityEvent({
+		type: 'comment_create',
+		userId: user.id,
+		userRole: user.role,
+		resource: `/api/grievances/${row.id}/comments`,
+		detail: `Added comment #${id} to grievance ${row.id}`
+	});
 
 	const author = findUserById(db, user.id);
 	if (!author) {
@@ -250,6 +288,7 @@ grievanceRoutes.post('/:id/attachments', async (c) => {
 	logSecurityEvent({
 		type: 'upload_success',
 		userId: user.id,
+		userRole: user.role,
 		resource: `/api/grievances/${row.id}/attachments`,
 		detail: `Uploaded additional attachment: ${originalBasename(upload.name)}`
 	});
@@ -276,6 +315,14 @@ grievanceRoutes.get('/:id', (c) => {
 		});
 		throw err;
 	}
+
+	logSecurityEvent({
+		type: 'grievance_view',
+		userId: user.id,
+		userRole: user.role,
+		resource: `/api/grievances/${row.id}`,
+		detail: `Viewed grievance ${row.id}`
+	});
 
 	return c.json({ data: assembleGrievance(db, row) });
 });
@@ -323,6 +370,13 @@ grievanceRoutes.patch('/:id', async (c) => {
 				throw new HttpError(409, 'conflict', 'Resolved grievances cannot be edited.');
 			}
 			if (wantsStatus) {
+				logSecurityEvent({
+					type: 'access_denied',
+					userId: user.id,
+					userRole: user.role,
+					resource: `/api/grievances/${row.id}`,
+					detail: 'Student attempted to modify status directly'
+				});
 				throw new HttpError(403, 'unauthorized', 'Students cannot change grievance status.');
 			}
 
@@ -360,10 +414,25 @@ grievanceRoutes.patch('/:id', async (c) => {
 			db.prepare(
 				'UPDATE grievances SET title = ?, description = ?, category = ?, status = ?, updated_at = ? WHERE id = ?'
 			).run(nextTitle, nextDescription, nextCategory, nextStatus, ts, row.id);
+
+			logSecurityEvent({
+				type: 'grievance_update_content',
+				userId: user.id,
+				userRole: user.role,
+				resource: `/api/grievances/${row.id}`,
+				detail: `Student updated grievance content for ${row.id}`
+			});
 			break;
 		}
 		case 'warden': {
 			if (wantsContent) {
+				logSecurityEvent({
+					type: 'access_denied',
+					userId: user.id,
+					userRole: user.role,
+					resource: `/api/grievances/${row.id}`,
+					detail: 'Warden attempted to edit grievance content'
+				});
 				throw new HttpError(403, 'unauthorized', 'Wardens cannot edit grievance content.');
 			}
 			if (typeof status !== 'string') {
@@ -376,6 +445,14 @@ grievanceRoutes.patch('/:id', async (c) => {
 				ts,
 				row.id
 			);
+
+			logSecurityEvent({
+				type: 'grievance_status_change',
+				userId: user.id,
+				userRole: user.role,
+				resource: `/api/grievances/${row.id}`,
+				detail: `Warden changed status of ${row.id} from ${row.status} to ${nextStatus}`
+			});
 			break;
 		}
 		default: {

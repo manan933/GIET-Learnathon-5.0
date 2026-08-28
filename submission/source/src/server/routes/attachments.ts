@@ -34,6 +34,14 @@ attachmentRoutes.get('/:id', (c) => {
 
 	const bytes = readStoredFile(c.get('uploadsDir'), row.stored_filename);
 
+	logSecurityEvent({
+		type: 'attachment_download',
+		userId: user.id,
+		userRole: user.role,
+		resource: `/api/attachments/${row.id}`,
+		detail: `Downloaded attachment "${row.original_filename}" for grievance ${grievance.id}`
+	});
+
 	c.header('Content-Type', row.mime_type);
 	c.header('Content-Length', String(bytes.length));
 	c.header('X-Content-Type-Options', 'nosniff');

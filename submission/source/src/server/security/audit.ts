@@ -1,6 +1,7 @@
 /**
  * Security Audit Logging.
- * Structured logging for security events (auth, access control, upload checks).
+ * Structured logging for security & application audit trail.
+ * Logs all actions (auth, grievance operations, comments, attachments, access controls).
  * Never logs passwords, session tokens, or full file contents.
  */
 
@@ -10,8 +11,14 @@ export interface SecurityEvent {
 		| 'auth_failure'
 		| 'logout'
 		| 'access_denied'
+		| 'grievance_create'
+		| 'grievance_view'
+		| 'grievance_update_content'
+		| 'grievance_status_change'
+		| 'comment_create'
 		| 'upload_success'
 		| 'upload_rejected'
+		| 'attachment_download'
 		| 'rate_limit_exceeded'
 		| 'security_exception';
 	userId?: string;
