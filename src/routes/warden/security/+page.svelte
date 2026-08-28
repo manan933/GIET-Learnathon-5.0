@@ -196,7 +196,7 @@
 						<Input
 							id="rec-pin"
 							type="text"
-							placeholder="e.g. 849201"
+							placeholder="enter numbers only"
 							bind:value={pin}
 							class="h-8 text-xs font-mono"
 							required
@@ -208,7 +208,7 @@
 						<Input
 							id="rec-phrase"
 							type="text"
-							placeholder="e.g. HostelMasterAdmin"
+							placeholder="enter alphabets only"
 							bind:value={phrase}
 							class="h-8 text-xs font-mono"
 							required
@@ -220,7 +220,7 @@
 						<Input
 							id="rec-symbols"
 							type="text"
-							placeholder="e.g. @#*&$!"
+							placeholder="enter symbols only"
 							bind:value={symbols}
 							class="h-8 text-xs font-mono"
 							required
