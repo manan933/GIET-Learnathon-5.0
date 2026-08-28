@@ -53,14 +53,17 @@ export function readSessionUser(db: Database, token: string): SessionUser | unde
 	};
 }
 
+/**
+ * Issues a browser session cookie (no maxAge/expires attribute).
+ * Browsers automatically delete browser session cookies when the window or tab is closed.
+ */
 export function setSessionCookie(c: Context, token: string): void {
 	const isProd = process.env.NODE_ENV === 'production';
 	setCookie(c, SESSION_COOKIE, token, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'Lax',
-		secure: isProd,
-		maxAge: SESSION_TTL_SECONDS
+		secure: isProd
 	});
 }
 
@@ -89,4 +92,3 @@ export function requireUser(c: Context, db: Database): SessionUser {
 export function optionalToken(c: Context): string | undefined {
 	return getCookie(c, SESSION_COOKIE);
 }
-
