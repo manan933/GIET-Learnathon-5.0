@@ -10,8 +10,9 @@ interface LockoutRecord {
 // Map keyed by normalized account email (and fallback IP)
 const accountLockouts = new Map<string, LockoutRecord>();
 
-const LOCK_1_MIN_MS = 60 * 1000;
-const LOCK_15_MIN_MS = 15 * 60 * 1000;
+// Demo presentation timings: 3 attempts = 10s, 5 attempts = 15s
+const LOCK_3_FAILS_MS = 10 * 1000;
+const LOCK_5_FAILS_MS = 15 * 1000;
 
 function normalizeKey(email: string): string {
 	return email.trim().toLowerCase();
@@ -65,12 +66,11 @@ export function recordFailedAttempt(
 	record.failedAttempts += 1;
 	record.lastAttemptAt = now;
 
-	// Thresholds:
-	// >= 5 attempts -> 15 minutes lock
-	// >= 3 attempts -> 1 minute lock
+	// Thresholds for live judge demonstration:
+	// >= 5 attempts -> 15 seconds lock
+	// >= 3 attempts -> 10 seconds lock
 	if (record.failedAttempts >= 5) {
-		// Only set/extend lock if not already set to a later time
-		const targetLock = now + LOCK_15_MIN_MS;
+		const targetLock = now + LOCK_5_FAILS_MS;
 		if (!record.lockedUntil || record.lockedUntil < targetLock) {
 			record.lockedUntil = targetLock;
 		}
@@ -81,14 +81,13 @@ export function recordFailedAttempt(
 				userId: userId ?? 'anonymous',
 				resource: '/api/login',
 				ip,
-				detail: `High-threat lockout: Account ${email} locked for 15 minutes (${record.failedAttempts} consecutive failed attempts from IP ${ip})`
+				detail: `High-threat lockout: Account ${email} locked for 15s (${record.failedAttempts} consecutive failed attempts from IP ${ip})`
 			},
 			db
 		);
 	} else if (record.failedAttempts >= 3) {
-		// Set 1 minute lock if not already locked
 		if (!record.lockedUntil || record.lockedUntil <= now) {
-			record.lockedUntil = now + LOCK_1_MIN_MS;
+			record.lockedUntil = now + LOCK_3_FAILS_MS;
 		}
 
 		logSecurityEvent(
@@ -97,7 +96,7 @@ export function recordFailedAttempt(
 				userId: userId ?? 'anonymous',
 				resource: '/api/login',
 				ip,
-				detail: `Security warning: Account ${email} locked for 1 minute (${record.failedAttempts} consecutive failed attempts from IP ${ip}). Active sessions invalidated.`
+				detail: `Security warning: Account ${email} locked for 10s (${record.failedAttempts} consecutive failed attempts from IP ${ip}). Active sessions invalidated.`
 			},
 			db
 		);
@@ -112,9 +111,10 @@ export function recordFailedAttempt(
 		}
 	}
 
-	const remainingSeconds = record.lockedUntil && record.lockedUntil > now
-		? Math.ceil((record.lockedUntil - now) / 1000)
-		: 0;
+	const remainingSeconds =
+		record.lockedUntil && record.lockedUntil > now
+			? Math.ceil((record.lockedUntil - now) / 1000)
+			: 0;
 
 	return {
 		locked: Boolean(record.lockedUntil && record.lockedUntil > now),

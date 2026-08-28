@@ -126,7 +126,7 @@
 					<CardTitle>System Security Incidents</CardTitle>
 				</div>
 				<CardDescription>
-					Real-time log of account lockouts (3-fail 1m / 5-fail 15m), IP jailing, impossible travel, and unauthorized attempts.
+					Real-time log of account lockouts (3-fail 10s / 5-fail 15s), IP jailing, impossible travel, and unauthorized attempts.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
