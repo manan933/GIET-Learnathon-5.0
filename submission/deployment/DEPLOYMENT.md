@@ -24,29 +24,37 @@ The application will be accessible at:
 
 ---
 
-## 2. Deploying to Render.com (Persistent SQLite)
+## 2. Deploying to Render.com (Persistent SQLite Storage)
 
 ### Method A: 1-Click Blueprint (Recommended)
 1. Go to [dashboard.render.com](https://dashboard.render.com/) -> **New** -> **Blueprint**.
 2. Connect your GitHub repository (`GIET-Learnathon-5.0`).
 3. Render will automatically read `render.yaml` and configure:
-   - **Build Command**: `npm ci && npm run build`
+   - **Build Command**: `npm ci --include=dev && npm run build`
    - **Start Command**: `npm start`
-   - **Environment**: Node.js with persistent storage
+   - **Persistent Disk**: Mounted at `/var/data` (1 GB)
+   - **Environment Variables**:
+     - `HOSTEL_DB_PATH`: `/var/data/hostel.db`
+     - `HOSTEL_UPLOADS_DIR`: `/var/data/uploads`
 
-### Method B: Manual Web Service
+### Method B: Manual Web Service + Persistent Disk
 1. In Render Dashboard, click **New** -> **Web Service**.
 2. Select your repository.
 3. Settings:
    - **Runtime**: `Node`
-   - **Build Command**: `npm ci && npm run build`
+   - **Build Command**: `npm ci --include=dev && npm run build`
    - **Start Command**: `npm start`
-   - **Environment Variables**:
-     - `NODE_ENV`: `production`
-     - `HOSTEL_API_PORT`: `3001`
-     - `HOSTEL_DB_PATH`: `./data/hostel.db`
-     - `HOSTEL_UPLOADS_DIR`: `./uploads`
-4. Click **Deploy Web Service**.
+4. Attach Persistent Disk:
+   - Go to **Disks** tab -> **Add Disk**
+   - **Name**: `hostel-data`
+   - **Mount Path**: `/var/data`
+   - **Size**: `1 GB`
+5. Environment Variables:
+   - `NODE_ENV`: `production`
+   - `HOSTEL_API_PORT`: `3001`
+   - `HOSTEL_DB_PATH`: `/var/data/hostel.db`
+   - `HOSTEL_UPLOADS_DIR`: `/var/data/uploads`
+6. Click **Save Changes**.
 
 ---
 

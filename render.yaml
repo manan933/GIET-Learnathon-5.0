@@ -5,12 +5,16 @@ services:
     plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
+    disk:
+      name: hostel-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: HOSTEL_API_PORT
         value: "3001"
       - key: HOSTEL_DB_PATH
-        value: ./data/hostel.db
+        value: /var/data/hostel.db
       - key: HOSTEL_UPLOADS_DIR
-        value: ./uploads
+        value: /var/data/uploads
