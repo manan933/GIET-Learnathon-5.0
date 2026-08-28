@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth.ts';
 import { grievanceRoutes } from './routes/grievances.ts';
 import { attachmentRoutes } from './routes/attachments.ts';
 import { auditRoutes } from './routes/audit.ts';
+import { securityLogRoutes } from './routes/security-logs.ts';
 import { setAuditDb } from './security/audit.ts';
 import { cors } from 'hono/cors';
 
@@ -92,6 +93,7 @@ export function createApp(options: CreateAppOptions) {
 	app.route('/api/grievances', grievanceRoutes);
 	app.route('/api/attachments', attachmentRoutes);
 	app.route('/api/audit-logs', auditRoutes);
+	app.route('/api/security-logs', securityLogRoutes);
 
 	app.all('/api/*', () => {
 		throw new HttpError(404, 'not_found', 'Not found.');

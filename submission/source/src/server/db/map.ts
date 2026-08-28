@@ -1,4 +1,5 @@
 import { statusToUi } from '../http/status.ts';
+import { decryptField } from '../security/crypto.ts';
 import type {
 	AttachmentRow,
 	CommentRow,
@@ -53,7 +54,7 @@ export function toPublicGrievance(
 	return {
 		id: row.id,
 		title: row.title,
-		description: row.description,
+		description: decryptField(row.description),
 		category: row.category as GrievanceCategory,
 		status: statusToUi(row.status),
 		studentId: row.student_id,

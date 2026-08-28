@@ -27,6 +27,8 @@ import {
 import { sanitizeText } from '../security/sanitize.ts';
 import { checkRateLimit } from '../security/rate-limit.ts';
 import { logSecurityEvent } from '../security/audit.ts';
+import { encryptField } from '../security/crypto.ts';
+import { sanitizeImageBuffer } from '../storage/image-sanitizer.ts';
 
 function nowIso(): string {
 	return new Date().toISOString();
@@ -124,12 +126,15 @@ grievanceRoutes.post('/', async (c) => {
 	const sanitizedTitle = sanitizeText(trimmedTitle, 200);
 	const sanitizedDescription = sanitizeText(trimmedDescription, 10000);
 
+	// Column-Level AES-256-GCM Encryption for sensitive description
+	const encryptedDescription = encryptField(sanitizedDescription);
+
 	const id = nextGrievanceId(db);
 	const ts = nowIso();
 	db.prepare(
 		`INSERT INTO grievances (id, student_id, title, category, description, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
-	).run(id, user.id, sanitizedTitle, parsedCategory, sanitizedDescription, ts, ts);
+	).run(id, user.id, sanitizedTitle, parsedCategory, encryptedDescription, ts, ts);
 
 	logSecurityEvent({
 		type: 'grievance_create',
@@ -140,9 +145,11 @@ grievanceRoutes.post('/', async (c) => {
 	});
 
 	if (upload) {
-		const bytes = await bufferFromUpload(upload);
+		const rawBytes = await bufferFromUpload(upload);
+		// Strip EXIF / GPS / camera metadata from uploaded photo buffer
+		const cleanBytes = sanitizeImageBuffer(rawBytes, upload.type);
 		const stored = newStoredName(upload.type);
-		writeStoredFile(uploadsDir, stored, bytes);
+		writeStoredFile(uploadsDir, stored, cleanBytes);
 		db.prepare(
 			`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, data_base64, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -152,8 +159,8 @@ grievanceRoutes.post('/', async (c) => {
 			originalBasename(upload.name),
 			stored,
 			upload.type,
-			bytes.byteLength,
-			bytes.toString('base64'),
+			cleanBytes.byteLength,
+			cleanBytes.toString('base64'),
 			ts
 		);
 		logSecurityEvent({
@@ -161,7 +168,7 @@ grievanceRoutes.post('/', async (c) => {
 			userId: user.id,
 			userRole: user.role,
 			resource: `/api/grievances/${id}`,
-			detail: `Uploaded attachment: ${originalBasename(upload.name)} (${bytes.byteLength} bytes)`
+			detail: `Uploaded attachment: ${originalBasename(upload.name)} (EXIF metadata stripped, ${cleanBytes.byteLength} bytes)`
 		});
 	}
 
@@ -277,16 +284,26 @@ grievanceRoutes.post('/:id/attachments', async (c) => {
 		throw new HttpError(400, 'bad_request', 'A file field named file is required.');
 	}
 
-	const bytes = await bufferFromUpload(upload);
-	// Always use randomized safe name
+	const rawBytes = await bufferFromUpload(upload);
+	// Strip EXIF / GPS / camera metadata from uploaded photo buffer
+	const cleanBytes = sanitizeImageBuffer(rawBytes, upload.type);
 	const stored = newStoredName(upload.type);
 	const ts = nowIso();
-	writeStoredFile(c.get('uploadsDir'), stored, bytes);
+	writeStoredFile(c.get('uploadsDir'), stored, cleanBytes);
 	const id = nextAttachmentId(db);
 	db.prepare(
 		`INSERT INTO attachments (id, grievance_id, original_filename, stored_filename, mime_type, size_bytes, data_base64, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-	).run(id, row.id, originalBasename(upload.name), stored, upload.type, bytes.byteLength, bytes.toString('base64'), ts);
+	).run(
+		id,
+		row.id,
+		originalBasename(upload.name),
+		stored,
+		upload.type,
+		cleanBytes.byteLength,
+		cleanBytes.toString('base64'),
+		ts
+	);
 	touchGrievance(db, row.id, ts);
 
 	logSecurityEvent({
@@ -294,7 +311,7 @@ grievanceRoutes.post('/:id/attachments', async (c) => {
 		userId: user.id,
 		userRole: user.role,
 		resource: `/api/grievances/${row.id}/attachments`,
-		detail: `Uploaded additional attachment: ${originalBasename(upload.name)}`
+		detail: `Uploaded additional attachment: ${originalBasename(upload.name)} (EXIF metadata stripped)`
 	});
 
 	const saved = db.prepare('SELECT * FROM attachments WHERE id = ?').get(id) as AttachmentRow;
@@ -405,7 +422,8 @@ grievanceRoutes.patch('/:id', async (c) => {
 				if (description.trim().length > 10000) {
 					throw new HttpError(400, 'bad_request', 'Description must not exceed 10000 characters.');
 				}
-				nextDescription = sanitizeText(description.trim(), 10000);
+				const sanitized = sanitizeText(description.trim(), 10000);
+				nextDescription = encryptField(sanitized);
 			}
 			if (category !== undefined) {
 				if (typeof category !== 'string') {
