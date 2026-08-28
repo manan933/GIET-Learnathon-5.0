@@ -232,7 +232,7 @@
 						<Input
 							id="rec-newpass"
 							type="password"
-							placeholder="Min 8 chars (checked vs 800M+ breaches)"
+							placeholder="Min 8 characters"
 							bind:value={newPassword}
 							class="h-8 text-xs"
 							required
