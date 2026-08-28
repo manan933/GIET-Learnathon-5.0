@@ -51,12 +51,17 @@ export function createApp(options: CreateAppOptions) {
 		await next();
 	});
 
-	// Global HTTP Security Headers
+	// Global HTTP Security Headers (A+ Mozilla Observatory Compliant)
 	app.use('*', async (c, next) => {
 		await next();
 		c.header('X-Content-Type-Options', 'nosniff');
 		c.header('X-Frame-Options', 'DENY');
 		c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+		c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+		c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+		c.header('Cross-Origin-Resource-Policy', 'same-origin');
+		c.header('Cross-Origin-Opener-Policy', 'same-origin');
+		c.header('X-XSS-Protection', '0');
 	});
 
 	// Restricted CORS policy: allows local origins and verified deployment domains (onrender.com)
