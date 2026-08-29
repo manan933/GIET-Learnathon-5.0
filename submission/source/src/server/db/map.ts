@@ -40,7 +40,7 @@ export function toPublicComment(row: CommentRow, author: PublicUser): PublicComm
 		grievanceId: row.grievance_id,
 		authorId: row.author_id,
 		author,
-		body: row.body,
+		body: decryptField(row.body),
 		createdAt: row.created_at
 	};
 }
@@ -53,7 +53,7 @@ export function toPublicGrievance(
 ): PublicGrievance {
 	return {
 		id: row.id,
-		title: row.title,
+		title: decryptField(row.title),
 		description: decryptField(row.description),
 		category: row.category as GrievanceCategory,
 		status: statusToUi(row.status),

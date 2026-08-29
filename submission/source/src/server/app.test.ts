@@ -165,14 +165,15 @@ describe('HostelGrievance Hardened API Suite', () => {
 		expect(wardenJson.data.some((g: { id: string }) => g.id === createdId)).toBe(true);
 	});
 
-	it('student can create a grievance with AES-256-GCM encrypted description at rest', async () => {
+	it('student can create a grievance with AES-256-GCM encrypted title and description at rest', async () => {
 		const { cookie } = await login(app, 'student@example.test', 'student123');
+		const title = 'Broken cupboard hinge';
 		const desc = 'The cupboard hinge in B-204 is broken and the door will not close properly.';
 		const res = await app.request('/api/grievances', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
 			body: JSON.stringify({
-				title: 'Broken cupboard hinge',
+				title,
 				category: 'Room',
 				description: desc
 			})
@@ -180,12 +181,16 @@ describe('HostelGrievance Hardened API Suite', () => {
 		expect(res.status).toBe(201);
 		const json = await res.json();
 		expect(json.data.id).toMatch(/^GRV-\d{4}$/);
+		expect(json.data.title).toBe(title); // Decrypted in API
 		expect(json.data.description).toBe(desc); // Decrypted in API
 
-		// Verify that raw SQLite column stores AES-256 ciphertext starting with enc:v1:
-		const rawRow = db.prepare('SELECT description FROM grievances WHERE id = ?').get(json.data.id) as {
+		// Verify that raw SQLite columns store AES-256 ciphertext starting with enc:v1:
+		const rawRow = db.prepare('SELECT title, description FROM grievances WHERE id = ?').get(json.data.id) as {
+			title: string;
 			description: string;
 		};
+		expect(rawRow.title).toMatch(/^enc:v1:/);
+		expect(rawRow.title).not.toBe(title);
 		expect(rawRow.description).toMatch(/^enc:v1:/);
 		expect(rawRow.description).not.toContain('broken');
 	});

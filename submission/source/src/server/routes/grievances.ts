@@ -126,7 +126,8 @@ grievanceRoutes.post('/', async (c) => {
 	const sanitizedTitle = sanitizeText(trimmedTitle, 200);
 	const sanitizedDescription = sanitizeText(trimmedDescription, 10000);
 
-	// Column-Level AES-256-GCM Encryption for sensitive description
+	// Column-Level AES-256-GCM Military-Grade Encryption for both Title & Description
+	const encryptedTitle = encryptField(sanitizedTitle);
 	const encryptedDescription = encryptField(sanitizedDescription);
 
 	const id = nextGrievanceId(db);
@@ -134,7 +135,7 @@ grievanceRoutes.post('/', async (c) => {
 	db.prepare(
 		`INSERT INTO grievances (id, student_id, title, category, description, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`
-	).run(id, user.id, sanitizedTitle, parsedCategory, encryptedDescription, ts, ts);
+	).run(id, user.id, encryptedTitle, parsedCategory, encryptedDescription, ts, ts);
 
 	logSecurityEvent({
 		type: 'grievance_create',
@@ -231,14 +232,15 @@ grievanceRoutes.post('/:id/comments', async (c) => {
 		throw new HttpError(400, 'bad_request', 'Comment cannot exceed 5000 characters.');
 	}
 
-	// Server-side HTML entity escaping to eliminate Stored XSS
+	// Server-side HTML entity escaping to eliminate Stored XSS + AES-256 encryption
 	const sanitizedBody = sanitizeText(text, 5000);
+	const encryptedBody = encryptField(sanitizedBody);
 
 	const id = nextCommentId(db);
 	const ts = nowIso();
 	db.prepare(
 		`INSERT INTO comments (id, grievance_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)`
-	).run(id, row.id, user.id, sanitizedBody, ts);
+	).run(id, row.id, user.id, encryptedBody, ts);
 	touchGrievance(db, row.id, ts);
 
 	const roleLabel = user.role === 'warden' ? 'Warden' : 'Student';
@@ -413,7 +415,8 @@ grievanceRoutes.patch('/:id', async (c) => {
 				if (title.trim().length > 200) {
 					throw new HttpError(400, 'bad_request', 'Title must not exceed 200 characters.');
 				}
-				nextTitle = sanitizeText(title.trim(), 200);
+				const sanitized = sanitizeText(title.trim(), 200);
+				nextTitle = encryptField(sanitized);
 			}
 			if (description !== undefined) {
 				if (typeof description !== 'string' || description.trim().length < 20) {
