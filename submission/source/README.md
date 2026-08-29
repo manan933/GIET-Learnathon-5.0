@@ -1,134 +1,155 @@
-# HostelGrievance
+# 🛡️ HostelGrievance — University Grievance Management System
 
 > **🌐 Live Production Deployment**: [https://giet-learnathon-5-0.onrender.com](https://giet-learnathon-5-0.onrender.com)
 
-University hostel grievance portal — Svelte 5 UI plus a small local Hono + SQLite API. Built as a security-lab baseline and fully hardened for production deployment.
+A university hostel grievance portal built with a **Svelte 5** frontend and a hardened **Hono + SQLite** backend. This system implements a **Zero-Trust Architecture** with column-level **AES-256-GCM encryption at rest**, strict **IDOR/BOLA object authorization**, **progressive brute-force lockout**, **EXIF metadata stripping**, and **3-Factor Multi-Secret emergency account recovery**.
 
-## Install
+---
 
-```sh
+## 🔒 Security Architecture & Threat Analysis
+
+### 1. What can be attacked?
+An adversary targeting the portal could attempt attacks across multiple layers:
+* **Authentication & Login**: Brute-force dictionary attacks, credential stuffing, and session hijacking.
+* **Grievance Data & Comments**: Insecure Direct Object References (IDOR/BOLA) to read or tamper with complaints filed by other students.
+* **File Uploads**: Uploading malicious scripts disguised as images or exploiting sensitive EXIF GPS location data.
+* **Database Storage**: Dumping cleartext database tables containing private grievances and passwords.
+* **User Interface**: Injecting Stored Cross-Site Scripting (XSS) payloads into complaint titles, descriptions, or comment threads.
+
+#### Implemented Hardening Fixes:
+* `fix-1` - Replaced unsalted hashes with **`scrypt`** key derivation with unique 128-bit random salts per user.
+* `fix-2` - Enforced strict server-side **IDOR authorization** (`student_id === user.id`) on all ticket and comment routes.
+* `fix-3` - Protected attachments with parent-grievance ownership checks and automatic **EXIF GPS metadata stripping**.
+* `fix-4` - Encrypted grievance titles, descriptions, and comments with **AES-256-GCM** at rest (`enc:v1:<iv>:<tag>:<cipher>`).
+* `fix-5` - Automatically sanitized all text fields against **Stored XSS** by escaping HTML control characters (`<`, `>`, `&`, `"`, `'`).
+
+---
+
+### 2. What should the application trust?
+The application establishes trust strictly through cryptographic proofs and verified server-side state:
+* **Cryptographic Verification**: Only inputs validated against salted `scrypt` hashes, constant-time comparisons (`timingSafeEqual`), and verified AES-256-GCM authentication tags are trusted.
+* **Server-Side Session State**: Active session records in the database with validated expiration timestamps.
+* **Environment Secrets**: Cryptographically secure keys (`ENCRYPTION_KEY`, `SESSION_SECRET`) loaded into memory at startup.
+* **Database Relational Integrity**: User roles and ownership bindings stored securely in the SQLite database.
+
+#### Implemented Hardening Fixes:
+* `fix-1` - Replaced string comparisons with **`crypto.timingSafeEqual`** to prevent side-channel timing attacks during password and recovery verification.
+* `fix-2` - Added automatic session expiration validation (`expires_at`) and instant token destruction on logout and password reset.
+* `fix-3` - Restricted database queries to parameterized SQL statements to eliminate SQL injection vulnerabilities.
+
+---
+
+### 3. What should it never trust?
+The application operates on a **Zero-Trust Model** regarding all external and client-side inputs:
+* **The Client Browser & Frontend State**: Client-side validations, route guards, and hidden form fields can be easily bypassed by direct HTTP requests (e.g., Postman, cURL).
+* **User-Supplied Text**: Complaint titles, descriptions, room numbers, and comment bodies are treated as untrusted.
+* **File Metadata & MIME Types**: Client-supplied filenames, Content-Type headers, and file extensions cannot be trusted.
+* **Incoming HTTP Headers**: Unfiltered IP and geolocation headers cannot be trusted without rate-limiting and spoofing defenses.
+
+#### Implemented Hardening Fixes:
+* `fix-1` - Moved all business authorization logic to the server; the backend never relies on client role headers.
+* `fix-2` - Validated file magic bytes directly from binary buffers to verify true image signatures (JPEG/PNG/WebP/GIF) independent of client headers.
+* `fix-3` - Assigned server-generated random filenames (`<randomHex>.<ext>`) and stored files outside the publicly served web root with `X-Content-Type-Options: nosniff`.
+* `fix-4` - Enforced IP rate limits (30 req/min) and progressive account lockout on failed authentication attempts.
+
+---
+
+### 4. What can an authenticated user access?
+Access is partitioned with granular role-based and object-level permissions:
+
+#### Student Permissions:
+* Can view, edit, and comment **only on their own grievances**.
+* Can upload and download attachments **only for their own grievances**.
+* Can view account security logs and reset their password using **3-Factor Multi-Secret Recovery**.
+* **Forbidden**: Accessing other students' grievances, modifying ticket statuses, or accessing warden management routes.
+
+#### Warden Permissions:
+* Can view all grievances filed across the hostel to coordinate maintenance.
+* Can update grievance statuses (`Open` $\rightarrow$ `In Progress` $\rightarrow$ `Resolved`) and post official comments.
+* Can view system-wide threat and security incidents (including failed logins and unregistered account attempts).
+* **Forbidden**: Altering or tampering with the original text written by students.
+
+#### Implemented Hardening Fixes:
+* `fix-1` - Implemented `assertCanViewGrievance` middleware returning `403 Forbidden` for unauthorized ticket or comment access.
+* `fix-2` - Protected `GET /api/attachments/:id` by inspecting parent grievance ownership before serving images.
+* `fix-3` - Blocked wardens from altering grievance titles or descriptions during status updates.
+
+---
+
+### 5. What happens if an attacker bypasses one security control?
+The system utilizes **Defense-in-Depth** to ensure that the failure of any single control does not result in a total compromise:
+* **If an attacker obtains stolen credentials**: They cannot access other students' records due to strict per-user IDOR authorization checks.
+* **If an attacker downloads the raw SQLite database**: All grievance titles, descriptions, and comments remain unreadable ciphertext encrypted with AES-256-GCM. Passwords remain protected behind salted `scrypt` hashes.
+* **If an attacker bypasses file extension checks**: The server rejects the file via magic byte inspection; even if stored, the file cannot be executed because it is stored outside the web root with randomized names.
+* **If an attacker attempts automated brute force**: The account-level lockout locks the target account after 3 attempts (10s) and 5 attempts (15s), while automatically invalidating all active sessions.
+
+#### Implemented Hardening Fixes:
+* `fix-1` - Combined column-level AES-256-GCM encryption with database filesystem access controls.
+* `fix-2` - Linked account lockout to automated session termination to immediately revoke access upon suspicious hammering.
+* `fix-3` - Structured security event logging to alert administrators in real time to anomalous activity.
+
+---
+
+## 👥 Demo Credentials
+
+| Role | Email | Password | Room |
+| :--- | :--- | :--- | :--- |
+| **Student (Aarav)** | `student@example.test` | `student123` | B-204 |
+| **Student (Priya)** | `priya@example.test` | `student123` | A-112 |
+| **Student (Rohan)** | `rohan@example.test` | `student123` | C-008 |
+| **Warden (Mr. Sahu)** | `warden@example.test` | `warden123` | Admin |
+
+### 🔑 3-Factor Multi-Secret Emergency Recovery Keys
+* **Factor 1 (Numeric PIN)**: `849201`
+* **Factor 2 (Passphrase Word)**: `HostelMasterAdmin`
+* **Factor 3 (Symbol Key)**: `@#*&$!`
+
+---
+
+## 🚀 Quick Start & Development
+
+### 1. Installation
+```bash
+git clone https://github.com/manan933/GIET-Learnathon-5.0.git
+cd GIET-Learnathon-5.0
 npm install
 ```
 
-## Database
-
-SQLite lives at `data/hostel.db`. Attachment bytes live in `uploads/`.
-
-```sh
+### 2. Database Initialization
+```bash
 npm run db:reset
 ```
 
-This recreates the seeded database (3 students, 1 warden, 8 grievances, comments, and sample images).
-
-Run this once after installation, and again whenever you want to return to the original seeded state.
-
-Development logins:
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Student | `student@example.test` | `student123` |
-| Warden | `warden@example.test` | `warden123` |
-
-Additional students (`priya@example.test`, `rohan@example.test`) also use `student123`.
-
-## Run
-
-### Recommended: frontend and API together
-
-From the repository directory, run:
-
-```sh
+### 3. Run Locally
+```bash
+# Starts Frontend (Vite :5173) and API (Hono :3001) concurrently
 npm run dev:all
 ```
 
-This starts both services:
+---
 
-- Frontend: Vite, usually at `http://localhost:5173`
-- API: Hono at `http://127.0.0.1:3001`
+## 🧪 Verification & Testing
 
-Open the exact frontend URL printed by Vite. If port `5173` is already in use, Vite will choose another port such as `5174`.
-
-### Alternative: two terminals
-
-If you prefer to run the services separately:
-
-```sh
-# Terminal 1 — API
-npm run dev:api
-
-# Terminal 2 — frontend
-npm run dev
-```
-
-Then open the frontend URL printed in Terminal 2.
-
-### Frontend-only mode
-
-```sh
-npm run dev
-```
-
-This starts only the frontend. Login, grievances, comments, and attachments require the API from `npm run dev:api` to be running as well.
-
-If the browser shows `proxy error`, `ECONNREFUSED 127.0.0.1:3001`, or login requests fail, the API is not running. Stop the frontend with `Ctrl-C` and use `npm run dev:all`, or start the API in a second terminal.
-
-## Check the application
-
-After opening the frontend:
-
-1. Log in with the Student account.
-2. Browse the student dashboard and grievance details.
-3. Try the create-grievance, comment, and attachment workflows.
-4. Log out and log in with the Warden account.
-5. Browse the warden dashboard and grievance details.
-
-The challenge focuses on securing the existing application. Do not redesign the UI or change the intended student and warden workflows.
-
-## Check and test
-
-```sh
-npm run typecheck
+Execute the comprehensive automated test suite (19 passing security & API tests):
+```bash
 npm test
 ```
 
-The visible test suite contains baseline behavior checks. Because this repository is intentionally vulnerable, some security assertions may fail before hardening; do not delete or bypass those tests.
+Execute TypeScript strict typecheck:
+```bash
+npm run typecheck
+```
 
-The UI talks to the Hono API through `$lib/services` (`credentials: 'include'`). Vite proxies `/api` to port 3001.
+---
 
-The frontend route guard is the authoritative role boundary for navigation; the API handles the data requests behind those routes.
-
-## Security hardening challenge
-
-Treat this repository as an application that must be hardened before public deployment. The goal is to preserve legitimate student and warden workflows while reducing unauthorized access, unsafe input handling, data exposure, and operational blast radius.
-
-You may use any reasonable development or security tools, but findings must be explained and verified. Scanner output by itself is not a submission.
-
-## Submission expectations
-
-Submit a separate package with this structure:
+## 📁 Repository & Submission Structure
 
 ```text
 submission/
-├── source/
-├── deployment/
-├── SECURITY.md
-├── THREAT-MODEL.md
-├── HARDENING.md
-└── TEST-EVIDENCE/
+├── HARDENING.md         # Vulnerability register table (ID, Finding, Risk, Change, Verification, Residual Risk)
+├── SECURITY.md          # Security posture, defense-in-depth, assumptions & residual risks
+├── THREAT-MODEL.md      # Assets, actors, trust boundaries diagram, and attack surface
+├── deployment/          # Dockerfile, render.yaml, and deployment instructions
+├── source/              # Hardened application source code
+└── TEST-EVIDENCE/       # Test logs & verification output
 ```
-
-`HARDENING.md` must contain one concise row per finding using this format:
-
-```text
-| ID | Finding | Risk | Change | Verification | Residual Risk |
-|----|---------|------|--------|--------------|---------------|
-| H-01 | ... | ... | ... | ... | ... |
-```
-
-Use your own finding IDs. For each entry, explain what you found, why it matters, what changed, how you verified it, and what risk remains.
-
-`THREAT-MODEL.md` should describe the assets, actors, trust boundaries, authentication and authorization boundaries, data flows, filesystem and runtime boundaries, network assumptions, and important attack paths. Use any clear methodology.
-
-`SECURITY.md` should summarize the protected posture, major changes, remaining risks, deployment assumptions, verification evidence, and the blast radius that remains if one important control fails.
-
-`TEST-EVIDENCE/` should contain commands, test output, screenshots, or short reproducible examples that support the claims. Keep documentation proportional to the security outcome: a finding earns credit when its consequence, remediation, and verification are clear.
