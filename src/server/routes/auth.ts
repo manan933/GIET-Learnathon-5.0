@@ -16,7 +16,7 @@ import { checkRateLimit, resetRateLimit } from '../security/rate-limit.ts';
 import { logSecurityEvent } from '../security/audit.ts';
 import { checkLockout, recordFailedAttempt, recordSuccessfulLogin } from '../security/lockout.ts';
 import { checkImpossibleTravel } from '../security/geoip.ts';
-import { resetWardenPassword } from '../auth/recovery.ts';
+import { resetUserPassword } from '../auth/recovery.ts';
 
 export const authRoutes = new Hono<AppEnv>();
 
@@ -71,15 +71,48 @@ authRoutes.post('/login', async (c) => {
 	}
 
 	const user = findUserByEmail(db, email);
-	if (!user || !verifyPassword(password, user.password_hash)) {
-		// Record failed attempt (triggers 10s lock at 3 fails, and 15s lock at 5+ fails)
-		const failResult = recordFailedAttempt(email, clientIp, db, user?.id);
+	if (!user) {
+		// Log attempt for unregistered / unverified accounts with username and email in detail for warden security logs
+		const failResult = recordFailedAttempt(email, clientIp, db);
+		const attemptedUsername = email.split('@')[0] || email;
 
 		logSecurityEvent(
 			{
 				type: 'auth_failure',
-				userId: user?.id ?? 'anonymous',
-				userRole: user?.role ?? 'none',
+				userId: 'unregistered',
+				userRole: 'guest',
+				ip: clientIp,
+				resource: '/api/login',
+				detail: `Unregistered account login attempt: Email "${email}" (Username: ${attemptedUsername}) from IP ${clientIp}`
+			},
+			db
+		);
+
+		if (failResult.locked) {
+			throw new HttpError(
+				429,
+				'bad_request',
+				`Account locked for security due to ${failResult.attempts} failed attempts. Try again in ${failResult.remainingSeconds}s.`
+			);
+		}
+
+		const attemptsNote =
+			failResult.attempts < 3
+				? ` (Attempt ${failResult.attempts} of 3)`
+				: ` (Attempt ${failResult.attempts} of 5)`;
+
+		throw new HttpError(401, 'unauthenticated', `Invalid email or password.${attemptsNote}`);
+	}
+
+	if (!verifyPassword(password, user.password_hash)) {
+		// Record failed attempt (triggers 10s lock at 3 fails, and 15s lock at 5+ fails)
+		const failResult = recordFailedAttempt(email, clientIp, db, user.id);
+
+		logSecurityEvent(
+			{
+				type: 'auth_failure',
+				userId: user.id,
+				userRole: user.role,
 				ip: clientIp,
 				resource: '/api/login',
 				detail: `Failed login attempt for ${email} (${failResult.attempts} consecutive failures)`
@@ -168,8 +201,8 @@ authRoutes.get('/me', (c) => {
 	return c.json({ user: toPublicUser(user) });
 });
 
-// Warden 3-Factor Multi-Secret Password Reset
-authRoutes.post('/warden/reset-password', async (c) => {
+// 3-Factor Multi-Secret Password Reset (Supports Students & Wardens)
+const handle3FactorReset = async (c: any) => {
 	const db = c.get('db');
 	const clientIp = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? '127.0.0.1';
 
@@ -193,7 +226,7 @@ authRoutes.post('/warden/reset-password', async (c) => {
 		throw new HttpError(400, 'bad_request', 'All 3 recovery secrets, email, and new password are required.');
 	}
 
-	const result = await resetWardenPassword(db, {
+	const result = await resetUserPassword(db, {
 		email,
 		pin,
 		phrase,
@@ -203,4 +236,8 @@ authRoutes.post('/warden/reset-password', async (c) => {
 	});
 
 	return c.json({ ok: true, message: result.message });
-});
+};
+
+authRoutes.post('/warden/reset-password', handle3FactorReset);
+authRoutes.post('/auth/reset-password', handle3FactorReset);
+authRoutes.post('/student/reset-password', handle3FactorReset);
