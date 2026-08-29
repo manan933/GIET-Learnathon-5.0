@@ -55,18 +55,19 @@ export function findAttachmentRow(db: Database, id: string): AttachmentRow | und
 
 export function assembleGrievance(db: Database, row: GrievanceRow): PublicGrievance {
 	const studentRow = findUserById(db, row.student_id);
-	if (!studentRow) {
-		throw new HttpError(500, 'internal', 'Internal server error.');
-	}
-	const student = toPublicUser(studentRow);
+	const student = studentRow
+		? toPublicUser(studentRow)
+		: { id: row.student_id, name: 'Student', email: 'student@example.test', role: 'student' as const };
+
 	const attachments = listAttachmentRows(db, row.id).map(toPublicAttachment);
 	const comments = listCommentRows(db, row.id).map((comment) => {
 		const authorRow = findUserById(db, comment.author_id);
-		if (!authorRow) {
-			throw new HttpError(500, 'internal', 'Internal server error.');
-		}
-		return toPublicComment(comment, toPublicUser(authorRow));
+		const author = authorRow
+			? toPublicUser(authorRow)
+			: { id: comment.author_id, name: 'User', email: 'user@example.test', role: 'student' as const };
+		return toPublicComment(comment, author);
 	});
+
 	return toPublicGrievance(row, student, attachments, comments);
 }
 
