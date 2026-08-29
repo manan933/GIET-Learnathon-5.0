@@ -10,7 +10,7 @@ const SALT_PIN = '8f1a2b3c4d5e6f708192a3b4c5d6e7f8';
 const SALT_PHRASE = '112233445566778899aabbccddeeff00';
 const SALT_SYMBOLS = 'fedcba98765432100123456789abcdef';
 
-// Individually salted scrypt hashes for each of the 3 Warden Emergency Recovery Factors
+// Individually salted scrypt hashes for each of the 3 Emergency Recovery Factors
 // Factor 1 (Numeric PIN): "849201"
 // Factor 2 (Passphrase Word): "HostelMasterAdmin"
 // Factor 3 (Symbol Key): "@#*&$!"
@@ -20,7 +20,7 @@ export const WARDEN_RECOVERY_HASHES = {
 	symbolsHash: `scrypt:${SALT_SYMBOLS}:${scryptSync('@#*&$!', SALT_SYMBOLS, 64).toString('hex')}`
 };
 
-export async function resetWardenPassword(
+export async function resetUserPassword(
 	db: Database,
 	opts: {
 		email: string;
@@ -32,11 +32,11 @@ export async function resetWardenPassword(
 	}
 ): Promise<{ success: boolean; message: string }> {
 	const user = db
-		.prepare("SELECT * FROM users WHERE email = ? AND role = 'warden'")
-		.get(opts.email.trim()) as { id: string; email: string } | undefined;
+		.prepare('SELECT * FROM users WHERE email = ?')
+		.get(opts.email.trim()) as { id: string; email: string; role: string } | undefined;
 
 	if (!user) {
-		throw new HttpError(404, 'not_found', 'Warden account not found.');
+		throw new HttpError(404, 'not_found', 'User account not found.');
 	}
 
 	// 1. Verify all 3 separate recovery components using independent salted scrypt & timingSafeEqual
@@ -49,14 +49,18 @@ export async function resetWardenPassword(
 			{
 				type: 'auth_failure',
 				userId: user.id,
-				userRole: 'warden',
-				resource: '/api/warden/reset-password',
+				userRole: user.role,
+				resource: '/api/auth/reset-password',
 				ip: opts.ip,
-				detail: 'Failed warden 3-factor recovery attempt (invalid recovery secrets)'
+				detail: `Failed 3-factor recovery attempt for ${user.email} (invalid recovery secrets)`
 			},
 			db
 		);
-		throw new HttpError(401, 'unauthenticated', 'Invalid recovery secrets. Please check your PIN, passphrase, and symbol key.');
+		throw new HttpError(
+			401,
+			'unauthenticated',
+			'Invalid recovery secrets. Please check your PIN, passphrase, and symbol key.'
+		);
 	}
 
 	// 2. Validate new password strength
@@ -85,10 +89,10 @@ export async function resetWardenPassword(
 		{
 			type: 'auth_success',
 			userId: user.id,
-			userRole: 'warden',
-			resource: '/api/warden/reset-password',
+			userRole: user.role,
+			resource: '/api/auth/reset-password',
 			ip: opts.ip,
-			detail: 'Warden password successfully reset via 3-Factor Multi-Secret verification. All active sessions invalidated.'
+			detail: `Password for ${user.email} successfully reset via 3-Factor Multi-Secret verification. All active sessions invalidated.`
 		},
 		db
 	);
@@ -98,3 +102,6 @@ export async function resetWardenPassword(
 		message: 'Password successfully reset. You can now sign in with your new credentials.'
 	};
 }
+
+// Backwards-compatible alias for Warden tests
+export const resetWardenPassword = resetUserPassword;

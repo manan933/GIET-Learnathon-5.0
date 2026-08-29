@@ -453,4 +453,35 @@ describe('HostelGrievance Hardened API Suite', () => {
 		const cleanPng = stripPngMetadata(rawPng);
 		expect(cleanPng.length).toBeGreaterThan(0);
 	});
+
+	it('student 3-factor recovery works and resets student password', async () => {
+		const res = await app.request('/api/auth/reset-password', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				email: 'student@example.test',
+				pin: '849201',
+				phrase: 'HostelMasterAdmin',
+				symbols: '@#*&$!',
+				newPassword: 'newStudentPass2026!'
+			})
+		});
+		expect(res.status).toBe(200);
+
+		// Verify login with new password
+		const relogin = await login(app, 'student@example.test', 'newStudentPass2026!');
+		expect(relogin.res.status).toBe(200);
+	});
+
+	it('unregistered account login attempt logs username and email to security logs', async () => {
+		const unreg = await login(app, 'hacker_john@unverified.test', 'somePassword123');
+		expect(unreg.res.status).toBe(401);
+
+		const warden = await login(app, 'warden@example.test', 'warden123');
+		const wRes = await app.request('/api/security-logs', { headers: { Cookie: warden.cookie } });
+		const wJson = await wRes.json();
+		const match = wJson.data.find((log: { detail: string }) => log.detail.includes('hacker_john@unverified.test'));
+		expect(match).toBeDefined();
+		expect(match.detail).toContain('hacker_john');
+	});
 });
