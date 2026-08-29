@@ -1,0 +1,19 @@
+name: Production Deployment Status
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Update Production Environment
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+      url: https://giet-learnathon-5-0.onrender.com/
+    steps:
+      - name: Confirm Live Render Deployment
+        run: |
+          echo "Active Production Deployment: https://giet-learnathon-5-0.onrender.com/"
