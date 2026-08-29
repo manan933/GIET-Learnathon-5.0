@@ -169,7 +169,7 @@ authRoutes.post('/login', async (c) => {
 			userRole: user.role,
 			ip: clientIp,
 			resource: '/api/login',
-			detail: `Signed in successfully from ${travel.currentLocation}`
+			detail: `Signed in successfully from ${travel.currentLocation} (IP: ${clientIp})`
 		},
 		db
 	);
