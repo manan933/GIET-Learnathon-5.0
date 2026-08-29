@@ -95,12 +95,7 @@ authRoutes.post('/login', async (c) => {
 			);
 		}
 
-		const attemptsNote =
-			failResult.attempts < 3
-				? ` (Attempt ${failResult.attempts} of 3)`
-				: ` (Attempt ${failResult.attempts} of 5)`;
-
-		throw new HttpError(401, 'unauthenticated', `Invalid email or password.${attemptsNote}`);
+		throw new HttpError(401, 'unauthenticated', 'Invalid email or password.');
 	}
 
 	// Successful login: reset failed counters and rate limiters
