@@ -1,5 +1,7 @@
 # Security Hardening Log — HostelGrievance
 
+> **🌐 Live Production Deployment**: [https://giet-learnathon-5-0.onrender.com](https://giet-learnathon-5-0.onrender.com)
+
 This document lists all security vulnerabilities found in the original codebase, the risk they caused, the simple fix applied, how each fix was verified, and any remaining residual risk.
 
 ---

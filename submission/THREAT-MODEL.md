@@ -1,5 +1,7 @@
 # Threat Model & Attack Surface — HostelGrievance
 
+> **🌐 Live Production Deployment**: [https://giet-learnathon-5-0.onrender.com](https://giet-learnathon-5-0.onrender.com)
+
 This document outlines the threat model for the HostelGrievance application, identifying key assets, threat actors, trust boundaries, attack surface, and primary attack paths with their defenses.
 
 ---

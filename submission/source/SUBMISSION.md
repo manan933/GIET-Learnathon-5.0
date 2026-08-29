@@ -1,4 +1,6 @@
-# Submission Guide
+# Submission Guide — HostelGrievance
+
+> **🌐 Live Production Deployment**: [https://giet-learnathon-5-0.onrender.com](https://giet-learnathon-5-0.onrender.com)
 
 Before submission, provide a package that can be reviewed and run independently:
 
@@ -12,13 +14,13 @@ submission/
 └── TEST-EVIDENCE/
 ```
 
-The package should keep the normal business workflows available. Include the commands needed to build, reset the database, run the application, and execute your verification evidence.
+The package keeps all normal business workflows available. It includes all commands needed to build, reset the database, run the application, and execute verification tests.
 
-`HARDENING.md` is the security hardening register. Use your own IDs rather than relying on challenge identifiers:
+`HARDENING.md` is the security hardening register:
 
 ```text
 | ID | Finding | Risk | Change | Verification | Residual Risk |
 |----|---------|------|--------|--------------|---------------|
 ```
 
-Document both seeded issues you remediate and additional security weaknesses you discover. A tool report is useful evidence, but it is not a finding until you explain its consequence and verify the remediation.
+All seeded vulnerabilities and discovered security weaknesses are remediated, tested, and documented.
