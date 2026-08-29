@@ -31,14 +31,16 @@ The primary assets requiring protection in HostelGrievance include:
 ## 3. Trust Boundaries
 
 ```
-[ Untrusted Web Browser / Client ]
+[ Untrusted Web Browser / Client / AI Crawlers ]
               │
               ▼  (HTTP / JSON Requests over TLS)
 ┌────────────────────────────────────────────────────────┐
-│  TRUST BOUNDARY 1: Edge & Network Security             │
-│  - IP Rate Limiting (10 req / min)                     │
-│  - Account Lockout Counter (3 fails / 5 fails)         │
-│  - Geo-IP & Impossible Travel Checks                   │
+│  TRUST BOUNDARY 1: Edge, Network & Bot Defenses        │
+│  - IP Rate Limiting (10 req / min per IP)              │
+│  - Progressive Account Lockout (3 fails / 5 fails)     │
+│  - Geo-IP Origin & Impossible Travel Anomaly Detection │
+│  - AI Crawler / Scraper Blocking (`robots.txt`)        │
+│  - Client Anti-Inspection & Anti-Clickjacking Frame CSP│
 └─────────────────────────────┬──────────────────────────┘
                               │
                               ▼
@@ -47,6 +49,8 @@ The primary assets requiring protection in HostelGrievance include:
 │  - Session Token Validation (`readSessionUser`)        │
 │  - Token Expiration & Cookie Security (`HttpOnly`)     │
 │  - Salted Scrypt Password & 3-Factor Reset Engine      │
+│  - HaveIBeenPwned k-Anonymity Credential Check         │
+│  - Unregistered Account Attempt Alerting               │
 └─────────────────────────────┬──────────────────────────┘
                               │
                               ▼
@@ -56,6 +60,7 @@ The primary assets requiring protection in HostelGrievance include:
 │  - Parameter Whitelisting (Mass Assignment Defense)    │
 │  - HTML Input Sanitization (Stored XSS Defense)        │
 │  - Magic Byte Image Validation & EXIF Metadata Strip   │
+│  - Protected Attachment Downloads with Sandbox CSP     │
 └─────────────────────────────┬──────────────────────────┘
                               │
                               ▼
@@ -63,6 +68,7 @@ The primary assets requiring protection in HostelGrievance include:
 │  TRUST BOUNDARY 4: Storage & Data Encryption Layer     │
 │  - AES-256-GCM Column-Level Encryption at Rest         │
 │  - Parameterized SQLite Queries (SQLi Prevention)      │
+│  - Turso Cloud Distributed Persistence Synchronization │
 │  - Isolated `uploads/` Storage with Random File Names  │
 └────────────────────────────────────────────────────────┘
 ```
@@ -75,16 +81,19 @@ The application exposes the following key entry points to clients:
 
 | Entry Point | Method | Intended Purpose | Primary Threat | Mitigation Applied |
 |:---|:---|:---|:---|:---|
-| `/api/login` | `POST` | User authentication | Brute force, credential stuffing, impossible travel | Progressive account lockout (10s/15s), IP rate limits, Geo-IP anomaly alerts. |
+| `/api/login` | `POST` | User authentication | Brute force, credential stuffing, impossible travel | Progressive account lockout (10s/15s), IP rate limits (10 req/min), Geo-IP anomaly alerts, unverified account logging. |
 | `/api/logout` | `POST` | Session termination | Stale session reuse | Immediate session record deletion from database and cookie clearance. |
 | `/api/auth/reset-password` | `POST` | Emergency password reset | Unauthorized account takeover | Requires 3 independent salted secrets (PIN + Word + Symbols) and checks HaveIBeenPwned. |
 | `/api/grievances` | `GET` | List grievances | Data exposure | Students only receive their own rows; Wardens receive all. |
 | `/api/grievances` | `POST` | Create a new grievance | Stored XSS, malicious file upload | Server-side text sanitization, 2MB file limit, magic byte validation, EXIF stripping. |
 | `/api/grievances/:id` | `GET` | View grievance details | IDOR (reading others' tickets) | Server verifies ownership before returning data. AES-256 decrypted in memory. |
-| `/api/grievances/:id` | `PATCH` | Edit grievance / update status | Privilege escalation | Students can only edit own open tickets; Wardens can only change status. |
+| `/api/grievances/:id` | `PATCH` | Edit grievance / update status | Privilege escalation | Students can only edit own open tickets; Wardens can only change status. Resolved tickets locked (`409`). |
 | `/api/grievances/:id/comments` | `POST` | Add comment | BOLA / Unauthorized posting | Server verifies user owns grievance or is a warden. HTML content sanitized. |
-| `/api/attachments/:id` | `GET` | Download photo | Direct object reference leak | Checks parent grievance authorization before serving file with `nosniff` headers. |
+| `/api/attachments/:id` | `GET` | Download photo | Direct object reference leak | Checks parent grievance authorization before serving file with `nosniff` and sandbox headers. |
 | `/api/security-logs` | `GET` | View security alerts | Information disclosure | Scoped by role: students see only their account alerts; wardens see system threats. |
+| `/api/audit` | `GET` | View activity audit logs | Log tampering / snooping | Role-scoped audit logs separated from security threat alerts. |
+| `/robots.txt` | `GET` | Crawler policy | Search scraping of tickets | Disallows all AI bots and web scrapers from indexing `/student/`, `/warden/`, `/api/`. |
+| `/.well-known/security.txt`| `GET`| Vulnerability reporting | Uncoordinated disclosures | RFC 9116 security disclosure policy and contact endpoints. |
 
 ---
 
