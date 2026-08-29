@@ -61,7 +61,7 @@
 
 <PageHeader
 	title="Account Security Logs"
-	description="Dedicated security monitor tracking login failures, lockout events, and suspicious activity."
+	description="Keep track of security alerts and login activity on your account."
 >
 	{#snippet actions()}
 		<Button variant="outline" size="sm" onclick={loadLogs} disabled={loading}>
@@ -78,7 +78,7 @@
 			<CardTitle>Security Events & Warnings</CardTitle>
 		</div>
 		<CardDescription>
-			Monitors failed authentication attempts, brute-force jailing, and abnormal account access.
+			Shows security alerts and failed sign-in attempts on your account.
 		</CardDescription>
 	</CardHeader>
 	<CardContent>
@@ -88,7 +88,7 @@
 			<div class="flex flex-col items-center justify-center py-10 text-center">
 				<ShieldCheckIcon class="text-emerald-500 size-10 mb-2" />
 				<p class="font-medium text-sm">No Security Incidents</p>
-				<p class="text-muted-foreground text-xs mt-1">Your account is fully secure. Zero failed login attacks or lockouts recorded.</p>
+				<p class="text-muted-foreground text-xs mt-1">Your account is secure. Zero failed login attempts or lockouts recorded.</p>
 			</div>
 		{:else}
 			<div class="rounded-md border overflow-x-auto">

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PageHeader from '$lib/components/app/page-header.svelte';
-	import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -106,7 +106,7 @@
 
 <PageHeader
 	title="Threat & Security Center"
-	description="Dedicated security command center tracking brute-force lockouts, impossible travel, and emergency 3-Factor recovery."
+	description="Monitor login security, account lockouts, and emergency recovery."
 >
 	{#snippet actions()}
 		<Button variant="outline" size="sm" onclick={loadLogs} disabled={loading}>
@@ -125,9 +125,6 @@
 					<ShieldAlertIcon class="text-destructive size-5" />
 					<CardTitle>System Security Incidents</CardTitle>
 				</div>
-				<CardDescription>
-					Real-time log of account lockouts (3-fail 10s / 5-fail 15s), IP jailing, impossible travel, and unauthorized attempts.
-				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{#if loading && logs.length === 0}
@@ -180,9 +177,6 @@
 					<KeyRoundIcon class="text-primary size-5" />
 					<CardTitle class="text-base">Warden 3-Factor Reset</CardTitle>
 				</div>
-				<CardDescription class="text-xs">
-					Emergency reset unlocked by 3 distinct secret factors (Numeric PIN + Passphrase + Symbols).
-				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<form onsubmit={handleResetSubmit} class="space-y-3" novalidate>
@@ -243,11 +237,6 @@
 						{resetting ? 'Verifying Factors…' : 'Unlock & Reset Password'}
 					</Button>
 				</form>
-
-				<p class="text-muted-foreground text-[10px] mt-4 leading-relaxed bg-muted p-2 rounded">
-					Demo default recovery keys:<br />
-					PIN: <code>849201</code> · Phrase: <code>HostelMasterAdmin</code> · Symbols: <code>@#*&$!</code>
-				</p>
 			</CardContent>
 		</Card>
 	</div>
