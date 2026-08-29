@@ -50,7 +50,7 @@ The application operates on a **Zero-Trust Model** regarding all external and cl
 * `fix-1` - Moved all business authorization logic to the server; the backend never relies on client role headers.
 * `fix-2` - Validated file magic bytes directly from binary buffers to verify true image signatures (JPEG/PNG/WebP/GIF) independent of client headers.
 * `fix-3` - Assigned server-generated random filenames (`<randomHex>.<ext>`) and stored files outside the publicly served web root with `X-Content-Type-Options: nosniff`.
-* `fix-4` - Enforced IP rate limits (30 req/min) and progressive account lockout on failed authentication attempts.
+* `fix-4` - Enforced IP rate limits (10 req/min) and progressive account lockout on failed authentication attempts.
 
 ---
 

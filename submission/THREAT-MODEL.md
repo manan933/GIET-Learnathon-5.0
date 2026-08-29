@@ -36,7 +36,7 @@ The primary assets requiring protection in HostelGrievance include:
               ▼  (HTTP / JSON Requests over TLS)
 ┌────────────────────────────────────────────────────────┐
 │  TRUST BOUNDARY 1: Edge & Network Security             │
-│  - IP Rate Limiting (30 req / min)                     │
+│  - IP Rate Limiting (10 req / min)                     │
 │  - Account Lockout Counter (3 fails / 5 fails)         │
 │  - Geo-IP & Impossible Travel Checks                   │
 └─────────────────────────────┬──────────────────────────┘

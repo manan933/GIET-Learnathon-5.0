@@ -55,8 +55,8 @@ authRoutes.post('/login', async (c) => {
 		);
 	}
 
-	// 2. IP Rate limiting: max 30 login attempts per 60 seconds per IP
-	const limit = checkRateLimit('login', clientIp, 30, 60_000);
+	// 2. IP Rate limiting: max 10 login attempts per 60 seconds per IP
+	const limit = checkRateLimit('login', clientIp, 10, 60_000);
 	if (!limit.allowed) {
 		logSecurityEvent(
 			{
