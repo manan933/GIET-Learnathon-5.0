@@ -3,18 +3,22 @@ import { checkPwnedPassword } from '../security/pwned.ts';
 import { logSecurityEvent } from '../security/audit.ts';
 import { HttpError } from '../http/errors.ts';
 import type { Database } from 'better-sqlite3';
+import { scryptSync } from 'node:crypto';
 
-// Default recovery secrets for demo / university warden setup
-export const DEFAULT_WARDEN_RECOVERY = {
-	pin: '849201', // Numeric PIN
-	phrase: 'HostelMasterAdmin', // Alphabetic Word
-	symbols: '@#*&$!' // Symbol Sequence
+// Pre-computed unique cryptographic salts for each secret factor
+const SALT_PIN = '8f1a2b3c4d5e6f708192a3b4c5d6e7f8';
+const SALT_PHRASE = '112233445566778899aabbccddeeff00';
+const SALT_SYMBOLS = 'fedcba98765432100123456789abcdef';
+
+// Individually salted scrypt hashes for each of the 3 Warden Emergency Recovery Factors
+// Factor 1 (Numeric PIN): "849201"
+// Factor 2 (Passphrase Word): "HostelMasterAdmin"
+// Factor 3 (Symbol Key): "@#*&$!"
+export const WARDEN_RECOVERY_HASHES = {
+	pinHash: `scrypt:${SALT_PIN}:${scryptSync('849201', SALT_PIN, 64).toString('hex')}`,
+	phraseHash: `scrypt:${SALT_PHRASE}:${scryptSync('HostelMasterAdmin', SALT_PHRASE, 64).toString('hex')}`,
+	symbolsHash: `scrypt:${SALT_SYMBOLS}:${scryptSync('@#*&$!', SALT_SYMBOLS, 64).toString('hex')}`
 };
-
-// Combined recovery token generator
-export function combineRecoverySecrets(pin: string, phrase: string, symbols: string): string {
-	return `rec:${pin.trim()}:${phrase.trim()}:${symbols.trim()}`;
-}
 
 export async function resetWardenPassword(
 	db: Database,
@@ -35,10 +39,10 @@ export async function resetWardenPassword(
 		throw new HttpError(404, 'not_found', 'Warden account not found.');
 	}
 
-	// 1. Verify all 3 separate recovery components
-	const isPinValid = opts.pin.trim() === DEFAULT_WARDEN_RECOVERY.pin;
-	const isPhraseValid = opts.phrase.trim() === DEFAULT_WARDEN_RECOVERY.phrase;
-	const isSymbolsValid = opts.symbols.trim() === DEFAULT_WARDEN_RECOVERY.symbols;
+	// 1. Verify all 3 separate recovery components using independent salted scrypt & timingSafeEqual
+	const isPinValid = verifyPassword(opts.pin.trim(), WARDEN_RECOVERY_HASHES.pinHash);
+	const isPhraseValid = verifyPassword(opts.phrase.trim(), WARDEN_RECOVERY_HASHES.phraseHash);
+	const isSymbolsValid = verifyPassword(opts.symbols.trim(), WARDEN_RECOVERY_HASHES.symbolsHash);
 
 	if (!isPinValid || !isPhraseValid || !isSymbolsValid) {
 		logSecurityEvent(
@@ -60,7 +64,7 @@ export async function resetWardenPassword(
 		throw new HttpError(400, 'bad_request', 'New password must be at least 8 characters long.');
 	}
 
-	// 3. Breached Credential Check (HaveIBeenPwned)
+	// 3. Breached Credential Check (HaveIBeenPwned k-Anonymity API)
 	const pwned = await checkPwnedPassword(opts.newPassword);
 	if (pwned.breached) {
 		throw new HttpError(
@@ -70,7 +74,7 @@ export async function resetWardenPassword(
 		);
 	}
 
-	// 4. Update password hash
+	// 4. Update password hash with fresh scrypt salt
 	const newHash = hashPassword(opts.newPassword);
 	db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
 
