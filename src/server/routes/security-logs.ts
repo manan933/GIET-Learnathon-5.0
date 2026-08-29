@@ -22,7 +22,7 @@ securityLogRoutes.get('/', (c) => {
 		const rows = db
 			.prepare(
 				`SELECT * FROM audit_logs 
-         WHERE event IN (${placeholders}) OR detail LIKE '%lock%' OR detail LIKE '%brute%' OR detail LIKE '%travel%' OR detail LIKE '%security%'
+         WHERE event IN (${placeholders}) OR detail LIKE '%lock%' OR detail LIKE '%brute%' OR detail LIKE '%travel%' OR detail LIKE '%security%' OR detail LIKE '%fail%'
          ORDER BY timestamp DESC LIMIT 200`
 			)
 			.all(...SECURITY_EVENTS);
@@ -34,7 +34,7 @@ securityLogRoutes.get('/', (c) => {
 		.prepare(
 			`SELECT * FROM audit_logs 
        WHERE (user_id = ? OR detail LIKE '%' || ? || '%')
-         AND (event IN (${placeholders}) OR detail LIKE '%lock%' OR detail LIKE '%brute%' OR detail LIKE '%travel%')
+         AND (event IN (${placeholders}) OR detail LIKE '%lock%' OR detail LIKE '%brute%' OR detail LIKE '%travel%' OR detail LIKE '%fail%')
        ORDER BY timestamp DESC LIMIT 100`
 		)
 		.all(user.id, user.email, ...SECURITY_EVENTS);

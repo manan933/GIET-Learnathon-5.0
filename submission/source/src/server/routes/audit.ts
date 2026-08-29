@@ -15,9 +15,13 @@ auditRoutes.get('/', (c) => {
 		return c.json({ data: rows });
 	}
 
-	// Students can only see their own activity log (tenant isolation)
+	// Students can see their own activity log + events referencing their email/account
 	const rows = db
-		.prepare('SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 100')
-		.all(user.id);
+		.prepare(
+			`SELECT * FROM audit_logs 
+       WHERE user_id = ? OR detail LIKE '%' || ? || '%' 
+       ORDER BY timestamp DESC LIMIT 200`
+		)
+		.all(user.id, user.email);
 	return c.json({ data: rows });
 });
