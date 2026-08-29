@@ -237,6 +237,11 @@
 						{resetting ? 'Verifying Factors…' : 'Unlock & Reset Password'}
 					</Button>
 				</form>
+
+				<p class="text-muted-foreground text-[10px] mt-4 leading-relaxed bg-muted p-2 rounded">
+					Demo recovery keys:<br />
+					PIN: <code>849201</code> · Phrase: <code>HostelMasterAdmin</code> · Symbols: <code>@#*&$!</code>
+				</p>
 			</CardContent>
 		</Card>
 	</div>
